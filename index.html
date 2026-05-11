@@ -387,27 +387,37 @@
             document.getElementById('f-internNr').value = p ? p.internNr : "";
             document.getElementById('f-factory').value = p ? p.factory || "" : "";
             
-            // Media liste
+            // Media liste - handle both new and old format
             const mediaList = document.getElementById('mediaList');
             mediaList.innerHTML = "";
             if (p && p.images && p.images.length > 0) {
                 p.images.forEach(img => addMediaField(img));
+            } else if (p && p.image) {
+                // Support old format with single image
+                addMediaField(p.image);
             } else {
                 addMediaField("");
             }
             
-            // Sertifikater liste
+            // Sertifikater liste - handle both new and old format
             const certList = document.getElementById('certificateList');
             certList.innerHTML = "";
             if (p && p.certificates && Object.keys(p.certificates).length > 0) {
                 Object.entries(p.certificates).forEach(([name, value]) => {
                     addCertificateField(name, value);
                 });
+            } else if (p) {
+                // Support old format with individual fields
+                if (p.sintef) addCertificateField("SINTEF", p.sintef);
+                if (p.pzh) addCertificateField("PZH", p.pzh);
+                if (p.rise) addCertificateField("RISE", p.rise);
+                if (p.stf) addCertificateField("STF", p.stf);
+                // If nothing was added, add empty defaults
+                if (!p.sintef && !p.pzh && !p.rise && !p.stf) {
+                    addCertificateField("", "");
+                }
             } else {
-                addCertificateField("SINTEF", "");
-                addCertificateField("PZH", "");
-                addCertificateField("RISE", "");
-                addCertificateField("STF", "");
+                addCertificateField("", "");
             }
             
             const vList = document.getElementById('variantList');
