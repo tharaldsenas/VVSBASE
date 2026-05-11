@@ -172,7 +172,14 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const firebaseConfig = {
+          apiKey: "AIzaSyBp0otGdkfiUeQ_Txvk29enBGA4F0Np8jU",
+          authDomain: "vvsbase.firebaseapp.com",
+          projectId: "vvsbase",
+          storageBucket: "vvsbase.firebasestorage.app",
+          messagingSenderId: "161114195892",
+          appId: "1:161114195892:web:5e401eec8fe01e7b0514e1"
+        };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
