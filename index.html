@@ -120,7 +120,6 @@
                             <button type="button" onclick="addMediaField()" class="bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
                         </div>
                         <div id="mediaList" class="space-y-2">
-                            <input type="text" placeholder="https://..." class="media-url w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
                         </div>
                     </section>
 
@@ -458,8 +457,9 @@
         window.addMediaField = (url = "") => {
             const div = document.createElement('div');
             div.className = "relative group";
+            const safeUrl = (url || "").replace(/"/g, "&quot;");
             div.innerHTML = `
-                <input type="text" placeholder="https://..." value="${url}" class="media-url w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
+                <input type="text" placeholder="https://..." value="${safeUrl}" class="media-url w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
                 <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
             `;
             document.getElementById('mediaList').appendChild(div);
@@ -468,10 +468,12 @@
         window.addCertificateField = (name = "", value = "") => {
             const div = document.createElement('div');
             div.className = "relative group bg-white p-3 rounded-xl border border-slate-200";
+            const safeName = (name || "").replace(/"/g, "&quot;");
+            const safeValue = (value || "").replace(/"/g, "&quot;");
             div.innerHTML = `
                 <div class="flex gap-2">
-                    <input type="text" placeholder="f.eks. SINTEF" value="${name}" class="cert-name flex-1 p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-black uppercase text-xs">
-                    <input type="text" placeholder="PS 3330" value="${value}" class="cert-value flex-1 p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-semibold">
+                    <input type="text" placeholder="f.eks. SINTEF" value="${safeName}" class="cert-name flex-1 p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-black uppercase text-xs">
+                    <input type="text" placeholder="PS 3330" value="${safeValue}" class="cert-value flex-1 p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-semibold">
                 </div>
                 <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
             `;
