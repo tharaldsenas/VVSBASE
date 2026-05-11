@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Armatur Database - Administrasjon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
+    <style>
+        .card:hover { transform: translateY(-4px); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal { background-color: rgba(15, 23, 42, 0.8); display: none; }
+        .modal.active { display: flex; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
+
+    <!-- Header & Søk -->
+    <header class="bg-slate-900 text-white p-6 sticky top-0 z-10 shadow-xl border-b border-slate-700">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tighter text-white flex items-center gap-2">
+                        <span class="bg-blue-600 px-2 py-1 rounded">VVS</span> DATABASE
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sentralt vareregister</p>
+                </div>
+                
+                <div class="flex-1 w-full max-w-2xl relative">
+                    <input type="text" id="mainSearch" placeholder="Søk i internt nr, kundenr, fabrikk eller sertifikat..." 
+                           class="w-full p-4 pl-12 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner">
+                    <svg class="w-5 h-5 text-slate-500 absolute left-4 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div id="authStatus" class="hidden md:block text-[10px] text-right">
+                        <div class="text-slate-500 font-bold uppercase tracking-tighter">Status</div>
+                        <div id="statusDot" class="text-orange-500">Kobler til...</div>
+                    </div>
+                    <button id="btnAddNew" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-900/20 active:scale-95">
+                        + NY VARE
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Avansert Filter Bar -->
+            <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-800 pt-4">
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">Hurtigfilter:</span>
+                <button class="filter-chip px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold hover:bg-slate-700 transition-colors" data-filter="pzh">PZH</button>
+                <button class="filter-chip px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold hover:bg-slate-700 transition-colors" data-filter="sintef">SINTEF</button>
+                <button class="filter-chip px-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold hover:bg-slate-700 transition-colors" data-filter="stf">STF</button>
+                
+                <div class="h-4 w-px bg-slate-700 mx-2"></div>
+                
+                <select id="factoryFilter" class="bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Alle Fabrikker</option>
+                </select>
+
+                <select id="customerFilter" class="bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Alle Kunder</option>
+                </select>
+
+                <button class="ml-auto text-[10px] font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest" id="resetFilters">Nullstill alle</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 md:p-8">
+        <div id="loading" class="flex flex-col items-center justify-center py-32 space-y-4">
+            <div class="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest">Synkroniserer varekatalog...</p>
+        </div>
+        <div id="productGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Produkter populerers her -->
+        </div>
+    </main>
+
+    <!-- Redigerings / Opprettings Modal -->
+    <div id="editorModal" class="modal fixed inset-0 z-50 items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div class="p-6 border-b bg-slate-50 flex justify-between items-center">
+                <div>
+                    <h2 id="modalTitle" class="text-xl font-black text-slate-800 tracking-tight">Varedetaljer</h2>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase">Endre teknisk info og varianter</p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-all">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Venstre Kolonne: Tekniske Data -->
+                <div class="space-y-8">
+                    <section>
+                        <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <span class="w-4 h-px bg-blue-600"></span> Identifikasjon
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2 md:col-span-1">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Internt NR (Basis-ID)</label>
+                                <input type="text" id="f-internNr" placeholder="f.eks. FED-K-A-01" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
+                            </div>
+                            <div class="col-span-2 md:col-span-1">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikk</label>
+                                <input type="text" id="f-factory" placeholder="f.eks. FEDERAL" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <span class="w-4 h-px bg-blue-600"></span> Media
+                        </h3>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Bilde-URL (Direktelenke)</label>
+                        <input type="text" id="f-image" placeholder="https://..." class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
+                    </section>
+
+                    <section>
+                        <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <span class="w-4 h-px bg-blue-600"></span> Sertifiseringer
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">SINTEF</label>
+                                <input type="text" id="f-sintef" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">RISE</label>
+                                <input type="text" id="f-rise" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">PZH</label>
+                                <input type="text" id="f-pzh" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm font-semibold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">STF</label>
+                                <input type="text" id="f-stf" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm font-semibold">
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Høyre Kolonne: Kunder og Varianter -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Kundevarianter</h3>
+                        <button onclick="addVariantRow()" class="bg-slate-900 text-white text-[9px] px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til rad</button>
+                    </div>
+                    <div id="variantList" class="space-y-4">
+                        <!-- Variant rader -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 bg-slate-900 flex justify-between items-center shadow-2xl">
+                <button id="btnDelete" class="text-red-400 text-[10px] font-black uppercase tracking-widest hover:text-red-300 transition-colors px-4 border-b border-transparent hover:border-red-300">Slett Vare</button>
+                <div class="flex gap-4">
+                    <button onclick="closeModal()" class="px-8 py-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-all">Lukk</button>
+                    <button id="btnSave" class="bg-blue-600 text-white px-12 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Lagre endringer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'armatur-database-v2';
+        
+        let products = [];
+        let currentEditId = null;
+        let user = null;
+        const dbPath = ['artifacts', appId, 'public', 'data', 'products'];
+
+        // EKSEMPELDATA FRA DINE BILDER
+        const seedData = [
+            {
+                internNr: "FED-K-A-01",
+                factory: "FEDERAL",
+                image: "https://lh3.googleusercontent.com/d/1X5r5-wW_8hX_fX_fX_fX_fX_fX_fX_fX", // Placeholder
+                sintef: "PS 3330",
+                rise: "SC0985-17",
+                stf: "EUFI29-22003788-TH1",
+                pzh: "B.BK.60110.2262.2025",
+                variants: [
+                    { kunde: "JULA", vareNr: "003850", beskrivelse: "Krom - Curaqua" },
+                    { kunde: "LOPE", vareNr: "950714", beskrivelse: "Krom - Celeste" },
+                    { kunde: "LOPE", vareNr: "74071", beskrivelse: "Krom - Bluerain" },
+                    { kunde: "LOPE", vareNr: "74071-N", beskrivelse: "Krom - Nortiq" },
+                    { kunde: "LOPE", vareNr: "74072", beskrivelse: "Sort - Bluerain" }
+                ]
+            },
+            {
+                internNr: "FED-K-A-02",
+                factory: "FEDERAL",
+                image: "https://lh3.googleusercontent.com/d/1-u-A69v52pEw_fX_fX_fX_fX_fX_fX_fX", // Placeholder for den flate kranen
+                sintef: "PS 3330",
+                rise: "SC0985-17",
+                stf: "EUFI29-22003788-TH1",
+                pzh: "B.BK.60110.2262.2025",
+                variants: [
+                    { kunde: "LOPE", vareNr: "950720", beskrivelse: "Krom - Celeste" },
+                    { kunde: "LOPE", vareNr: "74070", beskrivelse: "Krom - Bluerain" },
+                    { kunde: "LOPE", vareNr: "74070-N", beskrivelse: "Krom - Nortiq" }
+                ]
+            }
+        ];
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error", err);
+                document.getElementById('statusDot').innerText = "Tilkoblingsfeil";
+            }
+        };
+
+        onAuthStateChanged(auth, async (u) => {
+            user = u;
+            if (user) {
+                document.getElementById('statusDot').innerText = "✓ Synkronisert";
+                document.getElementById('statusDot').className = "text-green-500 font-bold uppercase";
+                
+                // Seed hvis tom
+                const q = collection(db, ...dbPath);
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    for (const item of seedData) {
+                        await setDoc(doc(db, ...dbPath, item.internNr.toLowerCase()), item);
+                    }
+                }
+                loadData();
+            }
+        });
+
+        const loadData = () => {
+            const q = collection(db, ...dbPath);
+            onSnapshot(q, (snapshot) => {
+                products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateFilterLists();
+                renderGrid();
+                document.getElementById('loading').style.display = 'none';
+            }, (err) => {
+                console.error("Fetch error", err);
+            });
+        };
+
+        const updateFilterLists = () => {
+            const factories = [...new Set(products.map(p => p.factory).filter(Boolean))].sort();
+            const customers = [...new Set(products.flatMap(p => p.variants || []).map(v => v.kunde).filter(Boolean))].sort();
+            
+            const fSelect = document.getElementById('factoryFilter');
+            const cSelect = document.getElementById('customerFilter');
+            
+            const currentF = fSelect.value;
+            const currentC = cSelect.value;
+
+            fSelect.innerHTML = '<option value="">Alle Fabrikker</option>' + factories.map(f => `<option value="${f}">${f}</option>`).join('');
+            cSelect.innerHTML = '<option value="">Alle Kunder</option>' + customers.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            fSelect.value = currentF;
+            cSelect.value = currentC;
+        };
+
+        const renderGrid = () => {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = "";
+            
+            const search = document.getElementById('mainSearch').value.toLowerCase();
+            const fFilter = document.getElementById('factoryFilter').value;
+            const cFilter = document.getElementById('customerFilter').value;
+
+            const filtered = products.filter(p => {
+                const searchable = `${p.internNr} ${p.factory} ${p.sintef} ${p.pzh} ${p.stf} ${p.rise} ${JSON.stringify(p.variants)}`.toLowerCase();
+                if (!searchable.includes(search)) return false;
+                
+                if (fFilter && p.factory !== fFilter) return false;
+                if (cFilter && !p.variants?.some(v => v.kunde === cFilter)) return false;
+                
+                if (activeFilter === 'pzh' && !p.pzh) return false;
+                if (activeFilter === 'sintef' && !p.sintef) return false;
+                if (activeFilter === 'stf' && !p.stf) return false;
+
+                return true;
+            });
+
+            filtered.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "card bg-white rounded-3xl shadow-sm hover:shadow-2xl border border-slate-200 cursor-pointer flex flex-col overflow-hidden";
+                card.onclick = () => openEditor(p);
+                
+                const variantsHtml = (p.variants || []).slice(0, 4).map(v => 
+                    `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0 group/row">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">${v.kunde}</span>
+                        <span class="text-[11px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 rounded">${v.vareNr}</span>
+                    </div>`
+                ).join('');
+
+                card.innerHTML = `
+                    <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group">
+                        <img src="${p.image || 'https://via.placeholder.com/300x300?text=Ingen+bilde'}" class="max-h-full object-contain group-hover:scale-110 transition-transform duration-500" alt="Armatur">
+                        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent Fabrikk'}</div>
+                        <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight">${p.internNr}</div>
+                    </div>
+                    <div class="p-6 flex-1 flex flex-col">
+                        <div class="flex gap-2 mb-6">
+                            ${p.pzh ? '<span class="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded border border-emerald-100 uppercase">PZH ✓</span>' : ''}
+                            ${p.sintef ? '<span class="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-100 uppercase">SINTEF ✓</span>' : ''}
+                            ${p.stf ? '<span class="text-[8px] font-black bg-amber-50 text-amber-600 px-2 py-1 rounded border border-amber-100 uppercase">STF ✓</span>' : ''}
+                        </div>
+                        
+                        <div class="space-y-0.5">
+                            <div class="text-[9px] uppercase font-black text-slate-300 mb-2 tracking-[0.2em]">Kundevarianter</div>
+                            ${variantsHtml || '<div class="text-xs text-slate-400 italic">Ingen data tilgjengelig</div>'}
+                            ${(p.variants || []).length > 4 ? `<div class="text-[10px] text-center mt-3 text-slate-400 font-bold">+ ${(p.variants.length - 4)} flere rader...</div>` : ''}
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        };
+
+        // Filter events
+        let activeFilter = null;
+        document.getElementById('mainSearch').addEventListener('input', () => renderGrid());
+        document.getElementById('factoryFilter').addEventListener('change', () => renderGrid());
+        document.getElementById('customerFilter').addEventListener('change', () => renderGrid());
+        
+        document.querySelectorAll('.filter-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                if (activeFilter === chip.dataset.filter) {
+                    activeFilter = null;
+                    chip.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+                } else {
+                    activeFilter = chip.dataset.filter;
+                    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('bg-blue-600', 'text-white', 'border-blue-600'));
+                    chip.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+                }
+                renderGrid();
+            });
+        });
+
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            activeFilter = null;
+            document.getElementById('mainSearch').value = "";
+            document.getElementById('factoryFilter').value = "";
+            document.getElementById('customerFilter').value = "";
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('bg-blue-600', 'text-white', 'border-blue-600'));
+            renderGrid();
+        });
+
+        window.openEditor = (p = null) => {
+            currentEditId = p ? p.id : null;
+            document.getElementById('modalTitle').innerText = p ? `Redigerer ${p.internNr}` : "Opprett ny varekort";
+            document.getElementById('btnDelete').style.display = p ? 'block' : 'none';
+            
+            document.getElementById('f-internNr').value = p ? p.internNr : "";
+            document.getElementById('f-factory').value = p ? p.factory || "" : "";
+            document.getElementById('f-image').value = p ? p.image || "" : "";
+            document.getElementById('f-sintef').value = p ? p.sintef || "" : "";
+            document.getElementById('f-pzh').value = p ? p.pzh || "" : "";
+            document.getElementById('f-stf').value = p ? p.stf || "" : "";
+            document.getElementById('f-rise').value = p ? p.rise || "" : "";
+            
+            const vList = document.getElementById('variantList');
+            vList.innerHTML = "";
+            if (p && p.variants) {
+                p.variants.forEach(v => addVariantRow(v.kunde, v.vareNr, v.beskrivelse));
+            } else {
+                addVariantRow();
+            }
+            document.getElementById('editorModal').classList.add('active');
+        };
+
+        window.closeModal = () => document.getElementById('editorModal').classList.remove('active');
+
+        window.addVariantRow = (k = "", v = "", b = "") => {
+            const div = document.createElement('div');
+            div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm";
+            div.innerHTML = `
+                <button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Kunde</label>
+                        <input type="text" placeholder="JULA, LOPE..." value="${k}" class="v-kunde w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500 font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Varenr</label>
+                        <input type="text" placeholder="003850..." value="${v}" class="v-vareNr w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500 font-mono font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Variantbeskrivelse</label>
+                    <input type="text" placeholder="Krom - Celeste etc." value="${b}" class="v-beskrivelse w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
+                </div>
+            `;
+            document.getElementById('variantList').appendChild(div);
+        };
+
+        document.getElementById('btnSave').onclick = async () => {
+            if (!user) return;
+            const internNr = document.getElementById('f-internNr').value.trim();
+            if (!internNr) return alert("Internt NR er påkrevd!");
+
+            const variants = [];
+            document.querySelectorAll('#variantList > div').forEach(row => {
+                const k = row.querySelector('.v-kunde').value.trim();
+                const v = row.querySelector('.v-vareNr').value.trim();
+                const b = row.querySelector('.v-beskrivelse').value.trim();
+                if (k || v) variants.push({ kunde: k, vareNr: v, beskrivelse: b });
+            });
+
+            const data = {
+                internNr,
+                factory: document.getElementById('f-factory').value.trim().toUpperCase(),
+                image: document.getElementById('f-image').value,
+                sintef: document.getElementById('f-sintef').value,
+                pzh: document.getElementById('f-pzh').value,
+                stf: document.getElementById('f-stf').value,
+                rise: document.getElementById('f-rise').value,
+                variants,
+                updatedAt: new Date().toISOString()
+            };
+
+            const docId = currentEditId || internNr.replace(/\s+/g, '-').toLowerCase();
+            await setDoc(doc(db, ...dbPath, docId), data);
+            closeModal();
+        };
+
+        document.getElementById('btnDelete').onclick = async () => {
+            if (!currentEditId || !user) return;
+            if (confirm("Er du helt sikker? Varen slettes fra alles databaser.")) {
+                await deleteDoc(doc(db, ...dbPath, currentEditId));
+                closeModal();
+            }
+        };
+
+        document.getElementById('btnAddNew').onclick = () => openEditor();
+
+        initAuth();
+    </script>
+</body>
+</html>
