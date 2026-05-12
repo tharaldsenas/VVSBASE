@@ -676,12 +676,20 @@
             if (!internNr) return alert("Internt NR er påkrevd!");
 
             const variants = [];
-            document.querySelectorAll('#variantList > div').forEach(row => {
-                const k = row.querySelector('.v-kunde').value.trim().toUpperCase();
-                const v = row.querySelector('.v-vareNr').value.trim();
-                const b = row.querySelector('.v-beskrivelse').value.trim();
-                if (k || v) variants.push({ kunde: k, vareNr: v, beskrivelse: b });
-            });
+
+document.querySelectorAll('#variantList > div').forEach(row => {
+    const kEl = row.querySelector('.v-kunde');
+    const vEl = row.querySelector('.v-vareNr');
+    const bEl = row.querySelector('.v-beskrivelse');
+
+    if (!kEl || !vEl || !bEl) return;
+
+    const k = kEl.value.trim().toUpperCase();
+    const v = vEl.value.trim();
+    const b = bEl.value.trim();
+
+    if (k || v) variants.push({ kunde: k, vareNr: v, beskrivelse: b });
+});
 
             // Samle bilder
             const images = [];
