@@ -582,6 +582,11 @@
         window.renderReadOnlyResourceLink = (title, url) => {
             const div = document.createElement('div');
             div.className = "bg-slate-100 p-3 rounded-xl border border-slate-300 relative group shadow-sm";
+            div.dataset.title = (title || "").trim();
+            div.dataset.url = (url || "").trim();
+
+
+
             const safeTitle = (title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             const safeUrl = (url || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             div.innerHTML = `
@@ -601,6 +606,7 @@
         window.addResourceLinkRow = (title = "", url = "") => {
             const div = document.createElement('div');
             div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm resource-link-row";
+            div.dataset.mode = "input";
             const safeTitle = (title || "").replace(/"/g, "&quot;");
             const safeUrl = (url || "").replace(/"/g, "&quot;");
             div.innerHTML = `
@@ -695,12 +701,25 @@
                 }
             });
 
-            const resourceLinks = [];
-            document.querySelectorAll('#resourceLinkList > div').forEach(row => {
-                const title = row.querySelector('.link-title').value.trim();
-                const url = row.querySelector('.link-url').value.trim();
-                if (title || url) resourceLinks.push({ title, url });
-            });
+const resourceLinks = [];
+
+document.querySelectorAll('#resourceLinkList .resource-link-row').forEach(row => {
+    const titleInput = row.querySelector('.link-title');
+    const urlInput = row.querySelector('.link-url');
+
+    // Input-rad
+    if (titleInput && urlInput) {
+        const title = titleInput.value.trim();
+        const url = urlInput.value.trim();
+        if (title || url) resourceLinks.push({ title, url });
+        return;
+    }
+
+    // Read-only rad (ingen inputs)
+    const title = (row.dataset.title || "").trim();
+    const url = (row.dataset.url || "").trim();
+    if (title || url) resourceLinks.push({ title, url });
+});
 
             const factoryArtNo = normalizeString(document.getElementById('f-factoryArtNo').value);
             const data = {
@@ -715,8 +734,15 @@
             };
 
             const docId = currentEditId || internNr.replace(/\s+/g, '-').toLowerCase();
-            await setDoc(doc(db, ...dbPath, docId), data);
-            closeModal();
+            
+try {
+    await setDoc(doc(db, ...dbPath, docId), data);
+    closeModal();
+} catch (err) {
+    console.error("Save failed", err);
+    alert("Lagring feilet – se Console for detaljer.");
+}
+
         };
 
         document.getElementById('btnDelete').onclick = async () => {
