@@ -409,7 +409,12 @@
             filtered.forEach(p => {
                 const card = document.createElement('div');
                 card.className = "card bg-white rounded-3xl shadow-sm hover:shadow-2xl border border-slate-200 cursor-pointer flex flex-col overflow-hidden";
-                card.onclick = () => openEditor(p);
+                
+card.addEventListener('click', (e) => {
+    if (e.target.closest('a, button')) return;
+    openEditor(p);
+});
+
                 
                 const variantsHtml = (p.variants || []).slice(0, 4).map(v => 
                     `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0 group/row">
