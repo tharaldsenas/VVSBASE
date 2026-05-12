@@ -476,7 +476,11 @@ card.addEventListener('click', (e) => {
                             ${variantsHtml || '<div class="text-xs text-slate-400 italic">Ingen data tilgjengelig</div>'}
                             ${(p.variants || []).length > 4 ? `<div class="text-[10px] text-center mt-3 text-slate-400 font-bold">+ ${(p.variants.length - 4)} flere rader...</div>` : ''}
                         </div>
-                        ${resourceLinksHtml ? `<div class="space-y-1 mt-4 pt-4 border-t border-slate-200">${resourceLinksHtml}</div>` : ''}
+                        ${resourceLinksHtml ? `
+  <div class="space-y-1 mt-4 pt-4 border-t border-slate-200 pointer-events-none">
+    ${resourceLinksHtml}
+  </div>
+` : ''}
                     </div>
                 `;
                 grid.appendChild(card);
