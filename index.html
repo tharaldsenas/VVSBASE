@@ -99,14 +99,18 @@
                         <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                             <span class="w-4 h-px bg-blue-600"></span> Identifikasjon
                         </h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-2 md:col-span-1">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Internt NR (Basis-ID)</label>
                                 <input type="text" id="f-internNr" placeholder="f.eks. FED-K-A-01" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
                             </div>
-                            <div class="col-span-2 md:col-span-1">
+                            <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikk</label>
                                 <input type="text" id="f-factory" placeholder="f.eks. FEDERAL" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikks art.no</label>
+                                <input type="text" id="f-factoryArtNo" placeholder="f.eks. 100055" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
                             </div>
                         </div>
                     </section>
@@ -144,6 +148,13 @@
                     <div id="variantList" class="space-y-4">
                         <!-- Variant rader -->
                     </div>
+                    <section class="mt-8">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Ressurslenker</h3>
+                            <button onclick="addResourceLinkRow()" class="bg-slate-900 text-white text-[9px] px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
+                        </div>
+                        <div id="resourceLinkList" class="space-y-4"></div>
+                    </section>
                 </div>
             </div>
 
@@ -261,15 +272,70 @@
             });
         };
 
+        const normalizeString = (value) => typeof value === 'string' ? value.trim().toUpperCase() : "";
+
+        const uploadImageToBlob = async (file) => {
+            const endpoint = 'https://tharaldsenapi-gnb2bqewejd3a3gt.westeurope-01.azurewebsites.net/api/upload';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    container: 'img',
+                    fileName: `${Date.now()}-${file.name}`
+                })
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Upload init failed: ${response.status} ${errorText}`);
+            }
+            const result = await response.json();
+            const uploadUrl = result.uploadUrl || result.sasUrl || result.url;
+            const blobUrl = result.blobUrl || result.fileUrl || result.url || (uploadUrl ? uploadUrl.split('?')[0] : null);
+            if (!uploadUrl) throw new Error('No upload URL returned from the server.');
+            const putResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'x-ms-blob-type': 'BlockBlob' }
+            });
+            if (!putResponse.ok) {
+                const errorText = await putResponse.text();
+                throw new Error(`File upload failed: ${putResponse.status} ${errorText}`);
+            }
+            return blobUrl;
+        };
+
+        window.triggerMediaUpload = (button) => {
+            const row = button.closest('.media-row');
+            const fileInput = row.querySelector('.media-file');
+            if (fileInput) fileInput.click();
+        };
+
+        window.handleMediaUpload = async (input) => {
+            const file = input.files && input.files[0];
+            const row = input.closest('.media-row');
+            const status = row?.querySelector('.media-upload-status');
+            if (!file || !row) return;
+            if (status) status.textContent = 'Laster opp...';
+            try {
+                const url = await uploadImageToBlob(file);
+                const urlInput = row.querySelector('.media-url');
+                if (urlInput) urlInput.value = url;
+                if (status) status.textContent = 'Lastet opp';
+            } catch (err) {
+                console.error('Upload failed', err);
+                if (status) status.textContent = 'Opplasting feilet';
+            }
+        };
+
         const updateFilterLists = () => {
-            const factories = [...new Set(products.map(p => p.factory).filter(Boolean))].sort();
-            const customers = [...new Set(products.flatMap(p => p.variants || []).map(v => v.kunde).filter(Boolean))].sort();
+            const factories = [...new Set(products.map(p => normalizeString(p.factory)).filter(Boolean))].sort();
+            const customers = [...new Set(products.flatMap(p => p.variants || []).map(v => normalizeString(v.kunde)).filter(Boolean))].sort();
             
             // Collect all certificates (both old and new format)
             const certSet = new Set();
             products.forEach(p => {
                 if (p.certificates) {
-                    Object.keys(p.certificates).forEach(cert => certSet.add(cert));
+                    Object.keys(p.certificates).forEach(cert => certSet.add(normalizeString(cert)));
                 }
                 // Legacy format support
                 if (p.sintef) certSet.add('SINTEF');
@@ -294,16 +360,16 @@
             fSelect.value = currentF;
             cSelect.value = currentC;
             certSelect.value = currentCert;
-        };
+        }; 
 
         const renderGrid = () => {
             const grid = document.getElementById('productGrid');
             grid.innerHTML = "";
             
             const search = document.getElementById('mainSearch').value.toLowerCase();
-            const fFilter = document.getElementById('factoryFilter').value;
-            const cFilter = document.getElementById('customerFilter').value;
-            const certFilter = document.getElementById('certificateFilter').value;
+            const fFilter = normalizeString(document.getElementById('factoryFilter').value);
+            const cFilter = normalizeString(document.getElementById('customerFilter').value);
+            const certFilter = normalizeString(document.getElementById('certificateFilter').value);
 
             const filtered = products.filter(p => {
                 // Support both old and new data formats
@@ -319,12 +385,16 @@
                 const searchable = `${p.internNr} ${p.factory} ${certsStr} ${legacyCerts} ${JSON.stringify(p.variants)}`.toLowerCase();
                 if (!searchable.includes(search)) return false;
                 
-                if (fFilter && p.factory !== fFilter) return false;
-                if (cFilter && !p.variants?.some(v => v.kunde === cFilter)) return false;
+                if (fFilter && normalizeString(p.factory) !== fFilter) return false;
+                if (cFilter && !p.variants?.some(v => normalizeString(v.kunde) === cFilter)) return false;
                 
                 // Certificate filter
                 if (certFilter) {
-                    const certData = certs[certFilter];
+                    const certsNormalized = {};
+                    Object.entries(certs).forEach(([name, value]) => {
+                        certsNormalized[normalizeString(name)] = value;
+                    });
+                    const certData = certsNormalized[certFilter];
                     const hasCert = certData || 
                                    (certFilter === 'SINTEF' && p.sintef) ||
                                    (certFilter === 'PZH' && p.pzh) ||
@@ -353,7 +423,7 @@
                 
                 // Build certificate badges (support both formats and show all certificates)
                 const certs = p.certificates || {};
-                const certNames = Object.keys(certs).sort();
+                const certNames = Object.keys(certs).map(normalizeString).sort();
                 
                 // Add legacy certs to the list if they exist
                 if (p.pzh && !certs.PZH) certNames.push('PZH');
@@ -378,7 +448,7 @@
                 card.innerHTML = `
                     <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group">
                         <img src="${imageUrl}" class="max-h-full object-contain group-hover:scale-110 transition-transform duration-500" alt="Armatur" onerror="this.src='https://via.placeholder.com/300x300?text=Ingen+bilde'">
-                        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent Fabrikk'}</div>
+                        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent Fabrikk'}${p.factoryArtNo ? ' / ' + p.factoryArtNo : ''}</div>
                         <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight">${p.internNr}</div>
                     </div>
                     <div class="p-6 flex-1 flex flex-col">
@@ -418,6 +488,7 @@
             
             document.getElementById('f-internNr').value = p ? p.internNr : "";
             document.getElementById('f-factory').value = p ? p.factory || "" : "";
+            document.getElementById('f-factoryArtNo').value = p ? p.factoryArtNo || "" : "";
             
             // Media liste - handle both new and old format
             const mediaList = document.getElementById('mediaList');
@@ -465,6 +536,15 @@
             } else {
                 addVariantRow();
             }
+
+            const linksList = document.getElementById('resourceLinkList');
+            linksList.innerHTML = "";
+            if (p && p.resourceLinks && p.resourceLinks.length > 0) {
+                p.resourceLinks.forEach(link => addResourceLinkRow(link.title, link.url));
+            } else {
+                addResourceLinkRow();
+            }
+
             document.getElementById('editorModal').classList.add('active');
         };
 
@@ -493,12 +573,41 @@
             document.getElementById('variantList').appendChild(div);
         };
 
-        window.addMediaField = (url = "") => {
+        window.addResourceLinkRow = (title = "", url = "") => {
             const div = document.createElement('div');
-            div.className = "relative group";
+            div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm";
+            const safeTitle = (title || "").replace(/"/g, "&quot;");
             const safeUrl = (url || "").replace(/"/g, "&quot;");
             div.innerHTML = `
-                <input type="text" placeholder="https://..." value="${safeUrl}" class="media-url w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
+                <button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+                <div class="grid grid-cols-1 gap-3">
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Lenketittel</label>
+                        <input type="text" placeholder="Beskrivelse av lenken" value="${safeTitle}" class="link-title w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">URL</label>
+                        <input type="url" placeholder="https://..." value="${safeUrl}" class="link-url w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
+                    </div>
+                </div>
+            `;
+            document.getElementById('resourceLinkList').appendChild(div);
+        };
+
+        window.addMediaField = (url = "") => {
+            const div = document.createElement('div');
+            div.className = "relative group media-row";
+            const safeUrl = (url || "").replace(/"/g, "&quot;");
+            div.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-2">
+                    <input type="text" placeholder="https://..." value="${safeUrl}" class="media-url flex-1 w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
+                    <button type="button" onclick="triggerMediaUpload(this)" class="bg-slate-900 text-white text-[9px] px-3 py-2 rounded-xl font-black uppercase hover:bg-blue-600 transition-all">Last opp</button>
+                </div>
+                <div class="flex items-center justify-between gap-4 mt-2 text-[10px] text-slate-500">
+                    <span>Lim inn URL eller last opp bilde direkte.</span>
+                    <span class="media-upload-status"></span>
+                </div>
+                <input type="file" accept="image/*" class="media-file hidden" onchange="handleMediaUpload(this)">
                 <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
             `;
             document.getElementById('mediaList').appendChild(div);
@@ -537,7 +646,7 @@
 
             const variants = [];
             document.querySelectorAll('#variantList > div').forEach(row => {
-                const k = row.querySelector('.v-kunde').value.trim();
+                const k = row.querySelector('.v-kunde').value.trim().toUpperCase();
                 const v = row.querySelector('.v-vareNr').value.trim();
                 const b = row.querySelector('.v-beskrivelse').value.trim();
                 if (k || v) variants.push({ kunde: k, vareNr: v, beskrivelse: b });
@@ -561,12 +670,22 @@
                 }
             });
 
+            const resourceLinks = [];
+            document.querySelectorAll('#resourceLinkList > div').forEach(row => {
+                const title = row.querySelector('.link-title').value.trim();
+                const url = row.querySelector('.link-url').value.trim();
+                if (title || url) resourceLinks.push({ title, url });
+            });
+
+            const factoryArtNo = normalizeString(document.getElementById('f-factoryArtNo').value);
             const data = {
                 internNr,
-                factory: document.getElementById('f-factory').value.trim().toUpperCase(),
+                factory: normalizeString(document.getElementById('f-factory').value),
+                factoryArtNo,
                 images: images.length > 0 ? images : [],
                 certificates: certificates,
                 variants,
+                resourceLinks,
                 updatedAt: new Date().toISOString()
             };
 
