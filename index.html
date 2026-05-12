@@ -605,20 +605,31 @@ card.addEventListener('click', (e) => {
             const safeTitle = (title || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             const safeUrl = (url || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             div.innerHTML = `
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex-1 min-w-0">
-                       
-                     <div class="text-[10px] font-semibold text-slate-700 truncate max-w-full" title="${safeTitle}">
-  ${safeTitle}
-</div>
+  <div class="flex items-center justify-between gap-3">
+    <div class="flex-1 min-w-0">
+      <div class="text-[10px] font-semibold text-slate-700 truncate max-w-full"
+           title="${safeTitle}">
+        ${safeTitle}
+      </div>
 
-<a href="${safeUrl}"
-   target="_blank"
-   rel="noopener noreferrer"
-   class="block text-[9px] text-blue-600 hover:text-blue-800 hover:underline truncate max-w-full"
-   title="${safeUrl}">
-   🔗 ${safeUrl}
-</a>
+      <a href="${safeUrl}"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="block text-[9px] text-blue-600 hover:text-blue-800 hover:underline truncate max-w-full"
+         title="${safeUrl}">
+         🔗 ${safeUrl}
+      </a>
+    </div>
+
+    <button type="button"
+            onclick="this.closest('.resource-link-row').remove()"
+            class="bg-slate-900 text-white w-6 h-6 rounded-full text-[10px]
+                   flex items-center justify-center shadow-lg hover:bg-red-600
+                   active:scale-90 transition-all">
+      ✕
+    </button>
+  </div>
+`;
 ``
 
                     </div>
