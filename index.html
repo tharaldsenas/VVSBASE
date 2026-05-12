@@ -445,16 +445,15 @@
                     return `<span class="text-[8px] font-black ${colorClass} px-2 py-1 rounded border uppercase">${cert} ✓</span>`;
                 }).join('');
 
-                const resourceLinksHtml = (p.resourceLinks || []).map(link =>
+                const resourceLinksHtml = (p.resourceLinks || []).map(link => `
   <a href="${link.url}"
-   target="_blank"
-   rel="noopener noreferrer"
-   onclick="event.stopPropagation()"
-   class="text-[9px] text-blue-600 hover:text-blue-800 hover:underline font-semibold block truncate">
-   🔗 ${link.title}
-</a>
-``
-).join('');
+     target="_blank"
+     rel="noopener noreferrer"
+     onclick="event.stopPropagation()"
+     class="block max-w-full truncate text-[9px] text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+     🔗 ${link.title}
+  </a>
+`).join('');
 
                 card.innerHTML = `
                     <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group">
