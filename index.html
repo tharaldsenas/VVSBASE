@@ -13,6 +13,24 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        /* Lightbox-stil */
+#lightbox {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+#lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    border-radius: 4px;
+}
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900">
@@ -103,8 +121,9 @@
                             </div>
                             <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikk</label>
-                                <input type="text" id="f-factory" placeholder="f.eks. FEDERAL" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
-                            </div>
+                                <input type="text" id="f-factory" list="factory-list" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold">
+                                <datalist id="factory-list"></datalist>                            
+                        </div>
                             <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikks art.no</label>
                                 <input type="text" id="f-factoryArtNo" placeholder="f.eks. 100055" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
@@ -261,8 +280,13 @@
             const q = collection(db, ...dbPath);
             onSnapshot(q, (snapshot) => {
                 products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
                 updateFilterLists();
                 renderGrid();
+                // Legg til denne linjen her - den sjekker om funksjonen finnes før den kjører
+        if (typeof updateFactoryList === 'function') {
+            updateFactoryList();
+        }
                 document.getElementById('loading').style.display = 'none';
             }, (err) => {
                 console.error("Fetch error", err);
@@ -436,16 +460,34 @@ card.addEventListener('click', (e) => {
                 // Deduplicate certificate names
                 const uniqueCertNames = [...new Set(certNames)];
                 
-                const certBadges = uniqueCertNames.map(cert => {
-                    const colors = {
-                        'PZH': 'bg-emerald-50 text-emerald-600 border-emerald-100',
-                        'SINTEF': 'bg-blue-50 text-blue-600 border-blue-100',
-                        'STF': 'bg-amber-50 text-amber-600 border-amber-100',
-                        'RISE': 'bg-purple-50 text-purple-600 border-purple-100'
-                    };
-                    const colorClass = colors[cert] || 'bg-slate-100 text-slate-600 border-slate-200';
-                    return `<span class="text-[8px] font-black ${colorClass} px-2 py-1 rounded border uppercase">${cert} ✓</span>`;
-                }).join('');
+const today = new Date();
+const threeMonthsFromNow = new Date();
+threeMonthsFromNow.setMonth(today.getMonth() + 3);
+
+const certBadges = uniqueCertNames.map(cert => {
+    const certData = (p.certificates && p.certificates[cert]) || {};
+    const expirationDate = certData.expirationDate ? new Date(certData.expirationDate) : null;
+    
+    // Finn standardfarge basert på merke
+    const brandColors = {
+        'PZH': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        'SINTEF': 'bg-blue-50 text-blue-600 border-blue-100',
+        'STF': 'bg-amber-50 text-amber-600 border-amber-100',
+        'RISE': 'bg-purple-50 text-purple-600 border-purple-100'
+    };
+    let statusColors = brandColors[cert] || 'bg-slate-100 text-slate-600 border-slate-200';
+
+    // Overstyr farge hvis datoen er nær eller passert
+    if (expirationDate) {
+        if (expirationDate < today) {
+            statusColors = 'bg-red-600 text-white border-red-700 animate-pulse'; // Utløpt
+        } else if (expirationDate < threeMonthsFromNow) {
+            statusColors = 'bg-yellow-400 text-yellow-900 border-yellow-500'; // Utløper snart
+        }
+    }
+
+    return `<span class="text-[8px] font-black ${statusColors} px-2 py-1 rounded border uppercase tracking-tighter">${cert} ✓</span>`;
+}).join('');
 
                 const resourceLinksHtml = (p.resourceLinks || []).map(link => `
   <a href="${link.url}"
@@ -458,11 +500,15 @@ card.addEventListener('click', (e) => {
 `).join('');
 
                 card.innerHTML = `
-                    <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group">
-                        <img src="${imageUrl}" class="max-h-full object-contain group-hover:scale-110 transition-transform duration-500" alt="Armatur" onerror="this.onerror=null; this.remove();">
-                        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent Fabrikk'}${p.factoryArtNo ? ' / ' + p.factoryArtNo : ''}</div>
-                        <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight">${p.internNr}</div>
-                    </div>
+    <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group">
+        <img src="${imageUrl}" 
+             alt="${p.internNr}" 
+             onclick="event.stopPropagation(); showLightbox('${imageUrl}')"
+             class="max-h-full object-contain cursor-zoom-in group-hover:scale-110 transition-transform duration-500">
+        
+        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent Fabrikk'}${p.factoryArtNo ? ' / ' + p.factoryArtNo : ''}</div>
+        <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight">${p.internNr}</div>
+    </div>
                     <div class="p-6 flex-1 flex flex-col">
                         <div class="flex gap-2 mb-6 flex-wrap">
                             ${certBadges}
@@ -626,24 +672,39 @@ window.addResourceLinkRow = (title = "", url = "") => {
     document.getElementById('resourceLinkList').appendChild(div);
 };
 
-        window.addMediaField = (url = "") => {
-            const div = document.createElement('div');
-            div.className = "relative group media-row";
-            const safeUrl = (url || "").replace(/"/g, "&quot;");
-            div.innerHTML = `
-                <div class="flex flex-col md:flex-row gap-2">
-                    <input type="text" placeholder="https://..." value="${safeUrl}" class="media-url flex-1 w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all text-sm">
-                    <button type="button" onclick="triggerMediaUpload(this)" class="bg-slate-900 text-white text-[9px] px-3 py-2 rounded-xl font-black uppercase hover:bg-blue-600 transition-all">Last opp</button>
+window.addMediaField = (url = "") => {
+    const div = document.createElement('div');
+    div.className = "relative group media-row bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2";
+    const safeUrl = (url || "").replace(/"/g, "&quot;");
+    
+    div.innerHTML = `
+        <div class="flex gap-4 items-start">
+            <div class="w-16 h-16 bg-white border rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center shadow-sm">
+<img src="${safeUrl}" onclick="showLightbox(this.src)" class="media-preview max-w-full max-h-full object-contain cursor-pointer ${url ? '' : 'hidden'}"                     onerror="this.classList.add('hidden')">
+                <div class="placeholder-icon text-slate-300 ${url ? 'hidden' : ''}">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 </div>
-                <div class="flex items-center justify-between gap-4 mt-2 text-[10px] text-slate-500">
-                    <span>Lim inn URL eller last opp bilde direkte.</span>
-                    <span class="media-upload-status"></span>
+            </div>
+
+            <div class="flex-1 space-y-2">
+                <div class="flex gap-2">
+                    <input type="text" placeholder="https://..." value="${safeUrl}" 
+                           class="media-url flex-1 p-2 text-xs border rounded-lg outline-none focus:border-blue-500 transition-all font-mono"
+                           oninput="this.closest('.media-row').querySelector('.media-preview').src = this.value; 
+                                    this.closest('.media-row').querySelector('.media-preview').classList.toggle('hidden', !this.value);
+                                    this.closest('.media-row').querySelector('.placeholder-icon').classList.toggle('hidden', !!this.value);">
+                    <button type="button" onclick="triggerMediaUpload(this)" class="bg-slate-900 text-white text-[9px] px-3 py-2 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">Last opp</button>
                 </div>
-                <input type="file" accept="image/*" class="media-file hidden" onchange="handleMediaUpload(this)">
-                <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
-            `;
-            document.getElementById('mediaList').appendChild(div);
-        };
+                <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                    <span class="media-upload-status">Klar for bilde</span>
+                </div>
+            </div>
+        </div>
+        <input type="file" accept="image/*" class="media-file hidden" onchange="handleMediaUpload(this)">
+        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-5 h-5 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+    `;
+    document.getElementById('mediaList').appendChild(div);
+};
 
         window.addCertificateField = (name = "", value = "", expirationDate = "") => {
             const div = document.createElement('div');
@@ -765,6 +826,31 @@ try {
         document.getElementById('btnAddNew').onclick = () => openEditor();
 
         initAuth();
+        window.showLightbox = (url) => {
+    const lb = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
+    img.src = url;
+    lb.style.display = 'flex';
+};
+window.updateFactoryList = () => {
+    const datalist = document.getElementById('factory-list');
+    // Sjekk at både lista og dataene finnes
+    if (!datalist || !products) return;
+
+    // Finn unike fabrikker
+    const factories = [...new Set(products
+        .map(p => p.factory)
+        .filter(f => f && typeof f === 'string' && f.trim() !== "")
+    )].sort();
+
+    // Fyll listen
+    datalist.innerHTML = factories
+        .map(f => `<option value="${f.trim()}">`)
+        .join('');
+};
     </script>
+    <div id="lightbox" onclick="this.style.display='none'">
+    <img id="lightbox-img" src="" alt="Forstørret bilde">
+</div>
 </body>
 </html>
