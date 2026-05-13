@@ -513,22 +513,28 @@ card.innerHTML = `
         
         ${hasMultipleImages ? `
             <button onclick="event.stopPropagation(); changeImage(this, ${JSON.stringify(allImages).replace(/"/g, '&quot;')}, -1)" 
-                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white">
+                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white z-20">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
             <button onclick="event.stopPropagation(); changeImage(this, ${JSON.stringify(allImages).replace(/"/g, '&quot;')}, 1)" 
-                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white">
+                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white z-20">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
             </button>
-
-            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                ${allImages.map((_, i) => `<div class="dot w-1.5 h-1.5 rounded-full bg-slate-900/20 ${i===0 ? 'bg-blue-600' : ''}"></div>`).join('')}
-            </div>
         ` : ''}
 
+        <button onclick="event.stopPropagation(); duplicateProduct('${p.id}')" 
+                class="absolute top-0 right-0 bg-blue-600 text-white p-2.5 rounded-bl-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 -translate-y-2 group-hover:translate-x-0 group-hover:translate-y-0 z-30 hover:bg-blue-700" 
+                title="Kopier varekort">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+            </svg>
+        </button>
+
         <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent'}</div>
-        <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight">${p.internNr}</div>
+        
+        <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight z-10">${p.internNr}</div>
     </div>
+
     
                     <div class="p-6 flex-1 flex flex-col">
                         <div class="flex gap-2 mb-6 flex-wrap">
@@ -887,6 +893,30 @@ window.changeImage = (button, images, direction) => {
         dot.classList.toggle('bg-blue-600', i === newIndex);
         dot.classList.toggle('bg-slate-900/20', i !== newIndex);
     });
+};
+window.duplicateProduct = (id) => {
+    // Finn produktet i den globale listen
+    const sourceProduct = products.find(p => p.id === id);
+    if (!sourceProduct) return;
+
+    // Lag en kopi av dataene
+    const copy = JSON.parse(JSON.stringify(sourceProduct));
+    
+    // Viktig: Nullstill ID og spesifikke felter som MÅ endres
+    delete copy.id;
+    copy.internNr = copy.internNr + " (KOPI)";
+    
+    // Åpne editoren med kopi-dataene
+    // Vi sender null som første argument for at systemet skal tro det er en "ny" vare
+    // men vi fyller inn feltene med data fra kopien
+    openEditor(copy);
+    
+    // Overstyr modal-tittelen for å vise at vi dupliserer
+    document.getElementById('modalTitle').innerText = "Dupliserer " + sourceProduct.internNr;
+    // Skjul slett-knappen siden dette teknisk sett er en ny vare
+    document.getElementById('btnDelete').style.display = 'none';
+    // Sett currentEditId til null så vi lagrer som ny vare
+    currentEditId = null;
 };
     </script>
     <div id="lightbox" onclick="this.style.display='none'">
