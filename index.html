@@ -32,6 +32,35 @@
     box-shadow: 0 0 50px rgba(0,0,0,0.5);
     border-radius: 4px;
 }
+                /* --- SKJUL REDIGERING (HOVEDSIDE) --- */
+
+                    /* 1. Skjul knapper på forsiden og i modalen */
+                    #btnAdd, 
+                    .copy-btn,
+                    #editorModal button:not(#btnClose), 
+                    #editorModal .btn-primary,
+                    #editorModal [onclick*="add"], 
+                    #editorModal [onclick*="remove"],
+                    #editorModal [onclick*="upload"],
+                    #editorModal .last-opp-btn { 
+                        display: none !important; 
+                    }
+
+                    /* 2. Lås alle inntastingsfelter visuelt og funksjonelt */
+                    #editorModal input, 
+                    #editorModal textarea, 
+                    #editorModal select {
+                        background-color: #f1f5f9 !important; 
+                        color: #64748b !important;
+                        border-color: #e2e8f0 !important;
+                    }
+
+                    /* 3. Fjern ikoner for sletting */
+                    #editorModal .delete-icon, 
+                    #editorModal .remove-row,
+                    #editorModal .text-red-500 {
+                        display: none !important;
+                    }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-900">
@@ -58,9 +87,7 @@
                         <div class="text-slate-500 font-bold uppercase tracking-tighter">Status</div>
                         <div id="statusDot" class="text-orange-500">Kobler til...</div>
                     </div>
-                    <button id="btnAddNew" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-900/20 active:scale-95">
-                        + NY VARE
-                    </button>
+                  
                 </div>
             </div>
             
@@ -103,7 +130,7 @@
                     <h2 id="modalTitle" class="text-xl font-black text-slate-800 tracking-tight">Varedetaljer</h2>
                     <p class="text-[10px] text-slate-500 font-bold uppercase">Endre teknisk info og varianter</p>
                 </div>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-all">
+                <button id="btnClose" onclick="closeModal()" class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-all" aria-label="Lukk modal">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
@@ -137,7 +164,6 @@
                             <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
                                 <span class="w-4 h-px bg-blue-600"></span> Media
                             </h3>
-                            <button type="button" onclick="addMediaField()" class="bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
                         </div>
                         <div id="mediaList" class="space-y-2">
                         </div>
@@ -148,7 +174,6 @@
                             <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
                                 <span class="w-4 h-px bg-blue-600"></span> Sertifiseringer
                             </h3>
-                            <button type="button" onclick="addCertificateField()" class="bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
                         </div>
                         <div id="certificateList" class="space-y-3">
                             <!-- Dynamisk liste med sertifikater -->
@@ -160,7 +185,6 @@
                 <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Kundevarianter</h3>
-                        <button onclick="addVariantRow()" class="bg-slate-900 text-white text-[9px] px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til rad</button>
                     </div>
                     <div id="variantList" class="space-y-4">
                         <!-- Variant rader -->
@@ -168,18 +192,15 @@
                     <section class="mt-8">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Ressurslenker</h3>
-                            <button onclick="addResourceLinkRow()" class="bg-slate-900 text-white text-[9px] px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
                         </div>
                         <div id="resourceLinkList" class="space-y-4"></div>
                     </section>
                 </div>
             </div>
 
-            <div class="p-6 bg-slate-900 flex justify-between items-center shadow-2xl">
-                <button id="btnDelete" class="text-red-400 text-[10px] font-black uppercase tracking-widest hover:text-red-300 transition-colors px-4 border-b border-transparent hover:border-red-300">Slett Vare</button>
+                        <div class="p-6 bg-slate-900 flex justify-end items-center shadow-2xl">
                 <div class="flex gap-4">
                     <button onclick="closeModal()" class="px-8 py-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-all">Lukk</button>
-                    <button id="btnSave" class="bg-blue-600 text-white px-12 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Lagre endringer</button>
                 </div>
             </div>
         </div>
@@ -523,13 +544,7 @@ card.innerHTML = `
             </button>
         ` : ''}
 
-        <button onclick="event.stopPropagation(); duplicateProduct('${p.id}')" 
-                class="absolute top-0 right-0 bg-blue-600 text-white p-2.5 rounded-bl-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 -translate-y-2 group-hover:translate-x-0 group-hover:translate-y-0 z-30 hover:bg-blue-700" 
-                title="Kopier varekort">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
-            </svg>
-        </button>
+       
 
         <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent'}</div>
         
@@ -575,7 +590,6 @@ card.innerHTML = `
         window.openEditor = (p = null) => {
             currentEditId = p ? p.id : null;
             document.getElementById('modalTitle').innerText = p ? `Redigerer ${p.internNr}` : "Opprett ny varekort";
-            document.getElementById('btnDelete').style.display = p ? 'block' : 'none';
             
             document.getElementById('f-internNr').value = p ? p.internNr : "";
             document.getElementById('f-factory').value = p ? p.factory || "" : "";
@@ -638,33 +652,72 @@ card.innerHTML = `
             }
 
             document.getElementById('editorModal').classList.add('active');
+            // Legg dette helt nederst i openEditor på HOVEDSIDEN
+            // Legg til helt sist i window.openEditor
+const modalInputs = document.querySelectorAll('#editorModal input, #editorModal textarea');
+modalInputs.forEach(input => {
+    input.readOnly = true;
+    input.disabled = false;
+    input.style.pointerEvents = 'auto';
+    input.style.userSelect = 'text';
+});
+const modal = document.getElementById('editorModal');
+
+// Funksjon som låser alt den finner
+const lockEverything = () => {
+    const elements = modal.querySelectorAll('input, textarea, select, button:not(#btnClose)');
+    elements.forEach(el => {
+        if (el.tagName === 'BUTTON') {
+            el.style.display = 'none';
+        } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.readOnly = true;
+            el.disabled = false;
+            el.style.pointerEvents = 'auto';
+            el.style.userSelect = 'text';
+        } else {
+            el.readOnly = true;
+            el.disabled = true;
+            el.style.pointerEvents = 'none';
+        }
+    });
+};
+
+// Kjør låsing med en gang, og igjen etter et kort opphold for å fange dynamiske felter
+lockEverything();
+setTimeout(lockEverything, 100);
+setTimeout(lockEverything, 500); // Dobbeltsjekk etter en halv sekund
+
+// Endre tittelen
+document.getElementById('modalTitle').innerText = p ? `Produktdetaljer: ${p.internNr}` : "Produktinformasjon";
+      // Legg dette nederst i openEditor-funksjonen (før den avsluttende })
+    setTimeout(() => {
+    const modal = document.getElementById('editorModal');
+    const allInputs = modal.querySelectorAll('input, textarea, select');
+    allInputs.forEach(el => {
+        el.readOnly = true;
+        el.disabled = false;
+        el.style.pointerEvents = 'auto';
+        el.style.userSelect = 'text';
+        el.classList.remove('cursor-not-allowed');
+    });
+}, 100);
         };
 
         window.closeModal = () => document.getElementById('editorModal').classList.remove('active');
 
-        window.addVariantRow = (k = "", v = "", b = "") => {
-            const div = document.createElement('div');
-            div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm";
-            div.innerHTML = `
-                <button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
-                <div class="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Kunde</label>
-                        <input type="text" placeholder="JULA, LOPE..." value="${k}" class="v-kunde w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500 font-bold">
-                    </div>
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Varenr</label>
-                        <input type="text" placeholder="003850..." value="${v}" class="v-vareNr w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500 font-mono font-bold">
-                    </div>
-                </div>
-                <div>
-                    <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Variantbeskrivelse</label>
-                    <input type="text" placeholder="Krom - Celeste etc." value="${b}" class="v-beskrivelse w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
-                </div>
-            `;
-            document.getElementById('variantList').appendChild(div);
-        };
-
+       window.addVariantRow = (v = "", artNo = "") => {
+    if (typeof v === 'object') {
+        const data = v;
+        artNo = data.artNo || data.vareNr || "";
+        v = data.customer || data.kunde || "";
+    }
+    const div = document.createElement('div');
+    div.className = "grid grid-cols-2 gap-2 mb-2";
+    div.innerHTML = `
+        <input type="text" value="${v}" readonly disabled class="p-2 border rounded bg-slate-100 cursor-not-allowed">
+        <input type="text" value="${artNo}" readonly disabled class="p-2 border rounded bg-slate-100 cursor-not-allowed">`;
+    document.getElementById('variantList').appendChild(div);
+};
        window.renderReadOnlyResourceLink = (title, url) => {
     const div = document.createElement('div');
     div.className = "bg-slate-100 p-3 rounded-xl border border-slate-300 relative group shadow-sm resource-link-row";
@@ -677,7 +730,6 @@ card.innerHTML = `
                 <div class="text-[10px] font-semibold text-slate-700 truncate">${title}</div>
                 <a href="${url}" target="_blank" class="block text-[9px] text-blue-600 hover:underline truncate">🔗 ${url}</a>
             </div>
-            <button type="button" onclick="this.closest('.resource-link-row').remove()" class="bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] flex items-center justify-center shadow-lg hover:bg-red-600 active:scale-90 transition-all">✕</button>
         </div>`;
     document.getElementById('resourceLinkList').appendChild(div);
 };
@@ -686,7 +738,6 @@ window.addResourceLinkRow = (title = "", url = "") => {
     const div = document.createElement('div');
     div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm resource-link-row";
     div.innerHTML = `
-        <button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
         <div class="grid grid-cols-1 gap-3">
             <div>
                 <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Lenketittel</label>
@@ -703,225 +754,64 @@ window.addResourceLinkRow = (title = "", url = "") => {
 window.addMediaField = (url = "") => {
     const div = document.createElement('div');
     div.className = "relative group media-row bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2";
-    const safeUrl = (url || "").replace(/"/g, "&quot;");
-    
     div.innerHTML = `
         <div class="flex gap-4 items-start">
-            <div class="w-16 h-16 bg-white border rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center shadow-sm">
-<img src="${safeUrl}" onclick="showLightbox(this.src)" class="media-preview max-w-full max-h-full object-contain cursor-pointer ${url ? '' : 'hidden'}"                     onerror="this.classList.add('hidden')">
-                <div class="placeholder-icon text-slate-300 ${url ? 'hidden' : ''}">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                </div>
+            <div class="w-16 h-16 bg-white border rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+                <img src="${url}" onclick="showLightbox(this.src)" class="media-preview max-w-full max-h-full object-contain cursor-zoom-in">
             </div>
-
-            <div class="flex-1 space-y-2">
-                <div class="flex gap-2">
-                    <input type="text" placeholder="https://..." value="${safeUrl}" 
-                           class="media-url flex-1 p-2 text-xs border rounded-lg outline-none focus:border-blue-500 transition-all font-mono"
-                           oninput="this.closest('.media-row').querySelector('.media-preview').src = this.value; 
-                                    this.closest('.media-row').querySelector('.media-preview').classList.toggle('hidden', !this.value);
-                                    this.closest('.media-row').querySelector('.placeholder-icon').classList.toggle('hidden', !!this.value);">
-                    <button type="button" onclick="triggerMediaUpload(this)" class="bg-slate-900 text-white text-[9px] px-3 py-2 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">Last opp</button>
-                </div>
-                <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                    <span class="media-upload-status">Klar for bilde</span>
-                </div>
+            <div class="flex-1">
+                <input type="text" value="${url}" readonly disabled class="w-full p-2 text-xs border rounded bg-slate-100 cursor-not-allowed">
             </div>
-        </div>
-        <input type="file" accept="image/*" class="media-file hidden" onchange="handleMediaUpload(this)">
-        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-5 h-5 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
-    `;
+        </div>`;
     document.getElementById('mediaList').appendChild(div);
 };
 
-        window.addCertificateField = (name = "", value = "", expirationDate = "") => {
-            const div = document.createElement('div');
-            div.className = "relative group bg-white p-3 rounded-xl border border-slate-200";
-            const safeName = (name || "").replace(/"/g, "&quot;");
-            const safeValue = (value || "").replace(/"/g, "&quot;");
-            const safeDate = (expirationDate || "").replace(/"/g, "&quot;");
-            div.innerHTML = `
-                <div class="grid grid-cols-3 gap-2">
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Sertifikat</label>
-                        <input type="text" placeholder="f.eks. SINTEF" value="${safeName}" class="cert-name w-full p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-black uppercase text-xs">
-                    </div>
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Verdi</label>
-                        <input type="text" placeholder="PS 3330" value="${safeValue}" class="cert-value w-full p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-semibold">
-                    </div>
-                    <div>
-                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Utløpsdato</label>
-                        <input type="date" value="${safeDate}" class="cert-expiration w-full p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm">
-                    </div>
-                </div>
-                <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
-            `;
-            document.getElementById('certificateList').appendChild(div);
-        };
-
-        document.getElementById('btnSave').onclick = async () => {
-            if (!user) return;
-            const internNr = document.getElementById('f-internNr').value.trim();
-            if (!internNr) return alert("Internt NR er påkrevd!");
-
-            const variants = [];
-
-document.querySelectorAll('#variantList > div').forEach(row => {
-    const kEl = row.querySelector('.v-kunde');
-    const vEl = row.querySelector('.v-vareNr');
-    const bEl = row.querySelector('.v-beskrivelse');
-
-    if (!kEl || !vEl || !bEl) return;
-
-    const k = kEl.value.trim().toUpperCase();
-    const v = vEl.value.trim();
-    const b = bEl.value.trim();
-
-    if (k || v) variants.push({ kunde: k, vareNr: v, beskrivelse: b });
-});
-
-            // Samle bilder
-            const images = [];
-            document.querySelectorAll('#mediaList .media-url').forEach(input => {
-                const url = input.value.trim();
-                if (url) images.push(url);
-            });
-
-            // Samle sertifikater
-            const certificates = {};
-            document.querySelectorAll('#certificateList > div').forEach(row => {
-                const name = row.querySelector('.cert-name').value.trim().toUpperCase();
-                const value = row.querySelector('.cert-value').value.trim();
-                const expirationDate = row.querySelector('.cert-expiration').value.trim();
-                if (name && value) {
-                    certificates[name] = { value, expirationDate };
-                }
-            });
-
-const resourceLinks = [];
-
-document.querySelectorAll('#resourceLinkList .resource-link-row').forEach(row => {
-    const titleInput = row.querySelector('.link-title');
-    const urlInput = row.querySelector('.link-url');
-
-    // Input-rad
-    if (titleInput && urlInput) {
-        const title = titleInput.value.trim();
-        const url = urlInput.value.trim();
-        if (title || url) resourceLinks.push({ title, url });
-        return;
+        window.addCertificateField = (type = "", value = "", expiry = "") => {
+    if (typeof type === 'object') {
+        const data = type;
+        expiry = data.expiry || data.expirationDate || "";
+        value = data.value || "";
+        type = data.type || data.name || "";
     }
+    const div = document.createElement('div');
+    div.className = "grid grid-cols-3 gap-2 mb-2 p-3 bg-white border rounded-xl shadow-sm";
+    div.innerHTML = `
+        <input type="text" value="${type}" readonly disabled class="p-2 text-xs border rounded bg-slate-100 font-bold uppercase">
+        <input type="text" value="${value}" readonly disabled class="p-2 text-xs border rounded bg-slate-100">
+        <input type="text" value="${expiry}" readonly disabled class="p-2 text-xs border rounded bg-slate-100">`;
+    document.getElementById('certificateList').appendChild(div);
+};
 
-    // Read-only rad (ingen inputs)
-    const title = (row.dataset.title || "").trim();
-    const url = (row.dataset.url || "").trim();
-    if (title || url) resourceLinks.push({ title, url });
-});
 
-            const factoryArtNo = normalizeString(document.getElementById('f-factoryArtNo').value);
-            const data = {
-                internNr,
-                factory: normalizeString(document.getElementById('f-factory').value),
-                factoryArtNo,
-                images: images.length > 0 ? images : [],
-                certificates: certificates,
-                variants,
-                resourceLinks,
-                updatedAt: new Date().toISOString()
-            };
 
-            const docId = currentEditId || internNr.replace(/\s+/g, '-').toLowerCase();
-            
-try {
-    await setDoc(doc(db, ...dbPath, docId), data);
-    closeModal();
-} catch (err) {
-    console.error("Save failed", err);
-    alert("Lagring feilet – se Console for detaljer.");
-}
-
+        window.updateFactoryList = () => {
+            const datalist = document.getElementById('factory-list');
+            if (!datalist || !products) return;
+            const factories = [...new Set(products.map(p => p.factory).filter(f => f))].sort();
+            datalist.innerHTML = factories.map(f => `<option value="${f}">`).join('');
         };
 
-        document.getElementById('btnDelete').onclick = async () => {
-            if (!currentEditId || !user) return;
-            if (confirm("Er du helt sikker? Varen slettes fra alles databaser.")) {
-                await deleteDoc(doc(db, ...dbPath, currentEditId));
-                closeModal();
-            }
+        window.changeImage = (button, images, direction) => {
+            const container = button.closest('.group');
+            const imgElement = container.querySelector('.product-main-image');
+            let currentIndex = images.indexOf(imgElement.src);
+            if (currentIndex === -1) currentIndex = 0;
+            let newIndex = (currentIndex + direction + images.length) % images.length;
+            imgElement.src = images[newIndex];
         };
-
-        document.getElementById('btnAddNew').onclick = () => openEditor();
 
         initAuth();
-        window.showLightbox = (url) => {
-    const lb = document.getElementById('lightbox');
-    const img = document.getElementById('lightbox-img');
-    img.src = url;
-    lb.style.display = 'flex';
-};
-window.updateFactoryList = () => {
-    const datalist = document.getElementById('factory-list');
-    // Sjekk at både lista og dataene finnes
-    if (!datalist || !products) return;
-
-    // Finn unike fabrikker
-    const factories = [...new Set(products
-        .map(p => p.factory)
-        .filter(f => f && typeof f === 'string' && f.trim() !== "")
-    )].sort();
-
-    // Fyll listen
-    datalist.innerHTML = factories
-        .map(f => `<option value="${f.trim()}">`)
-        .join('');
-};
-window.changeImage = (button, images, direction) => {
-    const container = button.closest('.group');
-    const imgElement = container.querySelector('.product-main-image');
-    const dots = container.querySelectorAll('.dot');
-    
-    // Finn nåværende indeks basert på bilde-URL
-    let currentIndex = images.indexOf(imgElement.src);
-    if (currentIndex === -1) currentIndex = 0;
-
-    // Regn ut ny indeks (looper rundt hvis vi går forbi start/slutt)
-    let newIndex = (currentIndex + direction + images.length) % images.length;
-
-    // Oppdater bilde og prikker
-    imgElement.src = images[newIndex];
-    dots.forEach((dot, i) => {
-        dot.classList.toggle('bg-blue-600', i === newIndex);
-        dot.classList.toggle('bg-slate-900/20', i !== newIndex);
-    });
-};
-window.duplicateProduct = (id) => {
-    // Finn produktet i den globale listen
-    const sourceProduct = products.find(p => p.id === id);
-    if (!sourceProduct) return;
-
-    // Lag en kopi av dataene
-    const copy = JSON.parse(JSON.stringify(sourceProduct));
-    
-    // Viktig: Nullstill ID og spesifikke felter som MÅ endres
-    delete copy.id;
-    copy.internNr = copy.internNr + " (KOPI)";
-    
-    // Åpne editoren med kopi-dataene
-    // Vi sender null som første argument for at systemet skal tro det er en "ny" vare
-    // men vi fyller inn feltene med data fra kopien
-    openEditor(copy);
-    
-    // Overstyr modal-tittelen for å vise at vi dupliserer
-    document.getElementById('modalTitle').innerText = "Dupliserer " + sourceProduct.internNr;
-    // Skjul slett-knappen siden dette teknisk sett er en ny vare
-    document.getElementById('btnDelete').style.display = 'none';
-    // Sett currentEditId til null så vi lagrer som ny vare
-    currentEditId = null;
-};
+        window.showLightbox = (src) => {
+            const lb = document.getElementById('lightbox');
+            const lbImg = document.getElementById('lightbox-img');
+            if (lb && lbImg) {
+                lbImg.src = src;
+                lb.style.display = 'flex';
+            }
+        };
     </script>
     <div id="lightbox" onclick="this.style.display='none'">
-    <img id="lightbox-img" src="" alt="Forstørret bilde">
-</div>
+        <img id="lightbox-img" src="" alt="Forstørret bilde">
+    </div>
 </body>
 </html>
