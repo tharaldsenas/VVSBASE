@@ -203,6 +203,7 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'armatur-database-v2';
         
         let products = [];
+        let slideshowInterval;
         let currentEditId = null;
         let user = null;
         const dbPath = ['artifacts', appId, 'public', 'data', 'products'];
@@ -277,21 +278,23 @@
         });
 
         const loadData = () => {
-            const q = collection(db, ...dbPath);
-            onSnapshot(q, (snapshot) => {
-                products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                updateFilterLists();
-                renderGrid();
-                // Legg til denne linjen her - den sjekker om funksjonen finnes før den kjører
-        if (typeof updateFactoryList === 'function') {
-            updateFactoryList();
+    const q = collection(db, ...dbPath);
+    onSnapshot(q, (snapshot) => {
+        // VIKTIG: Ingen 'const' her, vi bruker den globale variabelen
+        products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        updateFilterLists();
+        renderGrid();
+        
+        if (window.updateFactoryList) {
+            window.updateFactoryList();
         }
-                document.getElementById('loading').style.display = 'none';
-            }, (err) => {
-                console.error("Fetch error", err);
-            });
-        };
+
+        document.getElementById('loading').style.display = 'none';
+    }, (err) => {
+        console.error("Fetch error", err);
+    });
+};
 
         const normalizeString = (value) => typeof value === 'string' ? value.trim().toUpperCase() : "";
 
@@ -498,17 +501,35 @@ const certBadges = uniqueCertNames.map(cert => {
      🔗 ${link.title}
   </a>
 `).join('');
+const allImages = p.images || (p.image ? [p.image] : []);
+const hasMultipleImages = allImages.length > 1;
 
-                card.innerHTML = `
-    <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group">
-        <img src="${imageUrl}" 
+card.innerHTML = `
+    <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group overflow-hidden">
+        <img src="${allImages[0]}" 
              alt="${p.internNr}" 
-             onclick="event.stopPropagation(); showLightbox('${imageUrl}')"
-             class="max-h-full object-contain cursor-zoom-in group-hover:scale-110 transition-transform duration-500">
+             onclick="event.stopPropagation(); showLightbox(this.src)"
+             class="product-main-image max-h-full object-contain cursor-zoom-in group-hover:scale-110 transition-all duration-500">
         
-        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent Fabrikk'}${p.factoryArtNo ? ' / ' + p.factoryArtNo : ''}</div>
+        ${hasMultipleImages ? `
+            <button onclick="event.stopPropagation(); changeImage(this, ${JSON.stringify(allImages).replace(/"/g, '&quot;')}, -1)" 
+                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button onclick="event.stopPropagation(); changeImage(this, ${JSON.stringify(allImages).replace(/"/g, '&quot;')}, 1)" 
+                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+
+            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                ${allImages.map((_, i) => `<div class="dot w-1.5 h-1.5 rounded-full bg-slate-900/20 ${i===0 ? 'bg-blue-600' : ''}"></div>`).join('')}
+            </div>
+        ` : ''}
+
+        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent'}</div>
         <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight">${p.internNr}</div>
     </div>
+    
                     <div class="p-6 flex-1 flex flex-col">
                         <div class="flex gap-2 mb-6 flex-wrap">
                             ${certBadges}
@@ -847,6 +868,25 @@ window.updateFactoryList = () => {
     datalist.innerHTML = factories
         .map(f => `<option value="${f.trim()}">`)
         .join('');
+};
+window.changeImage = (button, images, direction) => {
+    const container = button.closest('.group');
+    const imgElement = container.querySelector('.product-main-image');
+    const dots = container.querySelectorAll('.dot');
+    
+    // Finn nåværende indeks basert på bilde-URL
+    let currentIndex = images.indexOf(imgElement.src);
+    if (currentIndex === -1) currentIndex = 0;
+
+    // Regn ut ny indeks (looper rundt hvis vi går forbi start/slutt)
+    let newIndex = (currentIndex + direction + images.length) % images.length;
+
+    // Oppdater bilde og prikker
+    imgElement.src = images[newIndex];
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('bg-blue-600', i === newIndex);
+        dot.classList.toggle('bg-slate-900/20', i !== newIndex);
+    });
 };
     </script>
     <div id="lightbox" onclick="this.style.display='none'">
