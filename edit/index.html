@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Armatur Database - Administrasjon</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%232563eb%22/><text x=%2250%%22 y=%2250%%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22 font-weight=%22900%22 font-size=%2250%22>VVS</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card:hover { transform: translateY(-4px); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal { background-color: rgba(15, 23, 42, 0.8); display: none; }
+        .modal.active { display: flex; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        /* Lightbox-stil */
+#lightbox {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+#lightbox img {
+    max-width: 90%;
+    max-height: 90%;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    border-radius: 4px;
+}
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-900">
+
+    <!-- Header & Søk -->
+    <header class="bg-slate-900 text-white p-6 sticky top-0 z-10 shadow-xl border-b border-slate-700">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <h1 class="text-2xl font-black tracking-tighter text-white flex items-center gap-2">
+                        <span class="bg-blue-600 px-2 py-1 rounded">VVS</span> DATABASE
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sentralt vareregister</p>
+                </div>
+                
+                <div class="flex-1 w-full max-w-2xl relative">
+                    <input type="text" id="mainSearch" placeholder="Søk i internt nr, kundenr, fabrikk eller sertifikat..." 
+                           class="w-full p-4 pl-12 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner">
+                    <svg class="w-5 h-5 text-slate-500 absolute left-4 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div id="authStatus" class="hidden md:block text-[10px] text-right">
+                        <div class="text-slate-500 font-bold uppercase tracking-tighter">Status</div>
+                        <div id="statusDot" class="text-orange-500">Kobler til...</div>
+                    </div>
+                    <button id="btnAddNew" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-900/20 active:scale-95">
+                        + NY VARE
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Avansert Filter Bar -->
+            <div class="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-800 pt-4">
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">Filter:</span>
+                
+                <select id="factoryFilter" class="bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Alle Fabrikker</option>
+                </select>
+
+                <select id="customerFilter" class="bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Alle Kunder</option>
+                </select>
+
+                <select id="certificateFilter" class="bg-slate-800 border border-slate-700 rounded-lg text-[11px] font-bold px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Alle Sertifikater</option>
+                </select>
+
+                <button class="ml-auto text-[10px] font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest" id="resetFilters">Nullstill alle</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 md:p-8">
+        <div id="loading" class="flex flex-col items-center justify-center py-32 space-y-4">
+            <div class="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+            <p class="text-slate-400 font-bold text-xs uppercase tracking-widest">Synkroniserer varekatalog...</p>
+        </div>
+        <div id="productGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Produkter populerers her -->
+        </div>
+    </main>
+
+    <!-- Redigerings / Opprettings Modal -->
+    <div id="editorModal" class="modal fixed inset-0 z-50 items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-200">
+            <div class="p-6 border-b bg-slate-50 flex justify-between items-center">
+                <div>
+                    <h2 id="modalTitle" class="text-xl font-black text-slate-800 tracking-tight">Varedetaljer</h2>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase">Endre teknisk info og varianter</p>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-900 p-2 rounded-full hover:bg-slate-200 transition-all">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <!-- Venstre Kolonne: Tekniske Data -->
+                <div class="space-y-8">
+                    <section>
+                        <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <span class="w-4 h-px bg-blue-600"></span> Identifikasjon
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Internt NR (Basis-ID)</label>
+                                <input type="text" id="f-internNr" placeholder="f.eks. FED-K-A-01" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikk</label>
+                                <input type="text" id="f-factory" list="factory-list" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all text-sm font-bold">
+                                <datalist id="factory-list"></datalist>                            
+                        </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Fabrikks art.no</label>
+                                <input type="text" id="f-factoryArtNo" placeholder="f.eks. 100055" class="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-blue-500 outline-none transition-all font-bold">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <span class="w-4 h-px bg-blue-600"></span> Media
+                            </h3>
+                            <button type="button" onclick="addMediaField()" class="bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
+                        </div>
+                        <div id="mediaList" class="space-y-2">
+                        </div>
+                    </section>
+
+                    <section>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <span class="w-4 h-px bg-blue-600"></span> Sertifiseringer
+                            </h3>
+                            <button type="button" onclick="addCertificateField()" class="bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
+                        </div>
+                        <div id="certificateList" class="space-y-3">
+                            <!-- Dynamisk liste med sertifikater -->
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Høyre Kolonne: Kunder og Varianter -->
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Kundevarianter</h3>
+                        <button onclick="addVariantRow()" class="bg-slate-900 text-white text-[9px] px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til rad</button>
+                    </div>
+                    <div id="variantList" class="space-y-4">
+                        <!-- Variant rader -->
+                    </div>
+                    <section class="mt-8">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Ressurslenker</h3>
+                            <button onclick="addResourceLinkRow()" class="bg-slate-900 text-white text-[9px] px-3 py-1.5 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">+ Legg til</button>
+                        </div>
+                        <div id="resourceLinkList" class="space-y-4"></div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="p-6 bg-slate-900 flex justify-between items-center shadow-2xl">
+                <button id="btnDelete" class="text-red-400 text-[10px] font-black uppercase tracking-widest hover:text-red-300 transition-colors px-4 border-b border-transparent hover:border-red-300">Slett Vare</button>
+                <div class="flex gap-4">
+                    <button onclick="closeModal()" class="px-8 py-3 text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:text-white transition-all">Lukk</button>
+                    <button id="btnSave" class="bg-blue-600 text-white px-12 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Lagre endringer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyBp0otGdkfiUeQ_Txvk29enBGA4F0Np8jU",
+          authDomain: "vvsbase.firebaseapp.com",
+          projectId: "vvsbase",
+          storageBucket: "vvsbase.firebasestorage.app",
+          messagingSenderId: "161114195892",
+          appId: "1:161114195892:web:5e401eec8fe01e7b0514e1"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'armatur-database-v2';
+        
+        let products = [];
+        let slideshowInterval;
+        let currentEditId = null;
+        let user = null;
+        const dbPath = ['artifacts', appId, 'public', 'data', 'products'];
+
+        // EKSEMPELDATA FRA DINE BILDER
+        const seedData = [
+            {
+                internNr: "FED-K-A-01",
+                factory: "FEDERAL",
+                image: "https://lh3.googleusercontent.com/d/1X5r5-wW_8hX_fX_fX_fX_fX_fX_fX_fX", // Placeholder
+                certificates: {
+                    SINTEF: { value: "PS 3330", expirationDate: "2027-05-12" },
+                    RISE: { value: "SC0985-17", expirationDate: "2026-12-31" },
+                    STF: { value: "EUFI29-22003788-TH1", expirationDate: "2028-06-15" },
+                    PZH: { value: "B.BK.60110.2262.2025", expirationDate: "2026-08-20" }
+                },
+                variants: [
+                    { kunde: "JULA", vareNr: "003850", beskrivelse: "Krom - Curaqua" },
+                    { kunde: "LOPE", vareNr: "950714", beskrivelse: "Krom - Celeste" },
+                    { kunde: "LOPE", vareNr: "74071", beskrivelse: "Krom - Bluerain" },
+                    { kunde: "LOPE", vareNr: "74071-N", beskrivelse: "Krom - Nortiq" },
+                    { kunde: "LOPE", vareNr: "74072", beskrivelse: "Sort - Bluerain" }
+                ]
+            },
+            {
+                internNr: "FED-K-A-02",
+                factory: "FEDERAL",
+                image: "https://lh3.googleusercontent.com/d/1-u-A69v52pEw_fX_fX_fX_fX_fX_fX_fX", // Placeholder for den flate kranen
+                certificates: {
+                    SINTEF: { value: "PS 3330", expirationDate: "2027-05-12" },
+                    RISE: { value: "SC0985-17", expirationDate: "2026-12-31" },
+                    STF: { value: "EUFI29-22003788-TH1", expirationDate: "2028-06-15" },
+                    PZH: { value: "B.BK.60110.2262.2025", expirationDate: "2026-08-20" }
+                },
+                variants: [
+                    { kunde: "LOPE", vareNr: "950720", beskrivelse: "Krom - Celeste" },
+                    { kunde: "LOPE", vareNr: "74070", beskrivelse: "Krom - Bluerain" },
+                    { kunde: "LOPE", vareNr: "74070-N", beskrivelse: "Krom - Nortiq" }
+                ]
+            }
+        ];
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error", err);
+                document.getElementById('statusDot').innerText = "Tilkoblingsfeil";
+            }
+        };
+
+        onAuthStateChanged(auth, async (u) => {
+            user = u;
+            if (user) {
+                document.getElementById('statusDot').innerText = "✓ Synkronisert";
+                document.getElementById('statusDot').className = "text-green-500 font-bold uppercase";
+                
+                // Seed hvis tom
+                const q = collection(db, ...dbPath);
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    for (const item of seedData) {
+                        await setDoc(doc(db, ...dbPath, item.internNr.toLowerCase()), item);
+                    }
+                }
+                loadData();
+            }
+        });
+
+        const loadData = () => {
+    const q = collection(db, ...dbPath);
+    onSnapshot(q, (snapshot) => {
+        // VIKTIG: Ingen 'const' her, vi bruker den globale variabelen
+        products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        updateFilterLists();
+        renderGrid();
+        
+        if (window.updateFactoryList) {
+            window.updateFactoryList();
+        }
+
+        document.getElementById('loading').style.display = 'none';
+    }, (err) => {
+        console.error("Fetch error", err);
+    });
+};
+
+        const normalizeString = (value) => typeof value === 'string' ? value.trim().toUpperCase() : "";
+
+        const uploadImageToBlob = async (file) => {
+            const endpoint = 'https://tharaldsenapi-gnb2bqewejd3a3gt.westeurope-01.azurewebsites.net/api/upload';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    container: 'img',
+                    fileName: `${Date.now()}-${file.name}`
+                })
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Upload init failed: ${response.status} ${errorText}`);
+            }
+            const result = await response.json();
+            const uploadUrl = result.uploadUrl || result.sasUrl || result.url;
+            const blobUrl = result.blobUrl || result.fileUrl || result.url || (uploadUrl ? uploadUrl.split('?')[0] : null);
+            if (!uploadUrl) throw new Error('No upload URL returned from the server.');
+            const putResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: { 'x-ms-blob-type': 'BlockBlob' }
+            });
+            if (!putResponse.ok) {
+                const errorText = await putResponse.text();
+                throw new Error(`File upload failed: ${putResponse.status} ${errorText}`);
+            }
+            return blobUrl;
+        };
+
+        window.triggerMediaUpload = (button) => {
+            const row = button.closest('.media-row');
+            const fileInput = row.querySelector('.media-file');
+            if (fileInput) fileInput.click();
+        };
+
+        window.handleMediaUpload = async (input) => {
+            const file = input.files && input.files[0];
+            const row = input.closest('.media-row');
+            const status = row?.querySelector('.media-upload-status');
+            if (!file || !row) return;
+            if (status) status.textContent = 'Laster opp...';
+            try {
+                const url = await uploadImageToBlob(file);
+                const urlInput = row.querySelector('.media-url');
+                if (urlInput) urlInput.value = url;
+                if (status) status.textContent = 'Lastet opp';
+            } catch (err) {
+                console.error('Upload failed', err);
+                if (status) status.textContent = 'Opplasting feilet';
+            }
+        };
+
+        const updateFilterLists = () => {
+            const factories = [...new Set(products.map(p => normalizeString(p.factory)).filter(Boolean))].sort();
+            const customers = [...new Set(products.flatMap(p => p.variants || []).map(v => normalizeString(v.kunde)).filter(Boolean))].sort();
+            
+            // Collect all certificates (both old and new format)
+            const certSet = new Set();
+            products.forEach(p => {
+                if (p.certificates) {
+                    Object.keys(p.certificates).forEach(cert => certSet.add(normalizeString(cert)));
+                }
+                // Legacy format support
+                if (p.sintef) certSet.add('SINTEF');
+                if (p.pzh) certSet.add('PZH');
+                if (p.rise) certSet.add('RISE');
+                if (p.stf) certSet.add('STF');
+            });
+            const certificates = [...certSet].sort();
+            
+            const fSelect = document.getElementById('factoryFilter');
+            const cSelect = document.getElementById('customerFilter');
+            const certSelect = document.getElementById('certificateFilter');
+            
+            const currentF = fSelect.value;
+            const currentC = cSelect.value;
+            const currentCert = certSelect.value;
+
+            fSelect.innerHTML = '<option value="">Alle Fabrikker</option>' + factories.map(f => `<option value="${f}">${f}</option>`).join('');
+            cSelect.innerHTML = '<option value="">Alle Kunder</option>' + customers.map(c => `<option value="${c}">${c}</option>`).join('');
+            certSelect.innerHTML = '<option value="">Alle Sertifikater</option>' + certificates.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            fSelect.value = currentF;
+            cSelect.value = currentC;
+            certSelect.value = currentCert;
+        }; 
+
+        const renderGrid = () => {
+            const grid = document.getElementById('productGrid');
+            grid.innerHTML = "";
+            
+            const search = document.getElementById('mainSearch').value.toLowerCase();
+            const fFilter = normalizeString(document.getElementById('factoryFilter').value);
+            const cFilter = normalizeString(document.getElementById('customerFilter').value);
+            const certFilter = normalizeString(document.getElementById('certificateFilter').value);
+
+            const filtered = products.filter(p => {
+                // Support both old and new data formats
+                const certs = p.certificates || {};
+                const certsStr = Object.entries(certs).map(([k, v]) => {
+                    if (typeof v === 'object' && v.value) {
+                        return `${k} ${v.value}`;
+                    } else {
+                        return `${k} ${v}`;
+                    }
+                }).join(' ');
+                const legacyCerts = [p.sintef, p.pzh, p.stf, p.rise].filter(Boolean).join(' ');
+                const searchable = `${p.internNr} ${p.factory} ${certsStr} ${legacyCerts} ${JSON.stringify(p.variants)}`.toLowerCase();
+                if (!searchable.includes(search)) return false;
+                
+                if (fFilter && normalizeString(p.factory) !== fFilter) return false;
+                if (cFilter && !p.variants?.some(v => normalizeString(v.kunde) === cFilter)) return false;
+                
+                // Certificate filter
+                if (certFilter) {
+                    const certsNormalized = {};
+                    Object.entries(certs).forEach(([name, value]) => {
+                        certsNormalized[normalizeString(name)] = value;
+                    });
+                    const certData = certsNormalized[certFilter];
+                    const hasCert = certData || 
+                                   (certFilter === 'SINTEF' && p.sintef) ||
+                                   (certFilter === 'PZH' && p.pzh) ||
+                                   (certFilter === 'RISE' && p.rise) ||
+                                   (certFilter === 'STF' && p.stf);
+                    if (!hasCert) return false;
+                }
+
+                return true;
+            });
+
+            filtered.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "card bg-white rounded-3xl shadow-sm hover:shadow-2xl border border-slate-200 cursor-pointer flex flex-col overflow-hidden";
+                
+card.addEventListener('click', (e) => {
+    if (e.target.closest('a, button')) return;
+    openEditor(p);
+});
+
+                
+                const variantsHtml = (p.variants || []).slice(0, 4).map(v => 
+                    `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0 group/row">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">${v.kunde}</span>
+                        <span class="text-[11px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 rounded">${v.vareNr}</span>
+                    </div>`
+                ).join('');
+
+                // Get first image from new format or fallback to legacy image
+                const imageUrl = (p.images && p.images[0]) || p.image || null;
+                
+                // Build certificate badges (support both formats and show all certificates)
+                const certs = p.certificates || {};
+                const certNames = Object.keys(certs).map(normalizeString).sort();
+                
+                // Add legacy certs to the list if they exist
+                if (p.pzh && !certs.PZH) certNames.push('PZH');
+                if (p.sintef && !certs.SINTEF) certNames.push('SINTEF');
+                if (p.rise && !certs.RISE) certNames.push('RISE');
+                if (p.stf && !certs.STF) certNames.push('STF');
+                
+                // Deduplicate certificate names
+                const uniqueCertNames = [...new Set(certNames)];
+                
+const today = new Date();
+const threeMonthsFromNow = new Date();
+threeMonthsFromNow.setMonth(today.getMonth() + 3);
+
+const certBadges = uniqueCertNames.map(cert => {
+    const certData = (p.certificates && p.certificates[cert]) || {};
+    const expirationDate = certData.expirationDate ? new Date(certData.expirationDate) : null;
+    
+    // Finn standardfarge basert på merke
+    const brandColors = {
+        'PZH': 'bg-emerald-50 text-emerald-600 border-emerald-100',
+        'SINTEF': 'bg-blue-50 text-blue-600 border-blue-100',
+        'STF': 'bg-amber-50 text-amber-600 border-amber-100',
+        'RISE': 'bg-purple-50 text-purple-600 border-purple-100'
+    };
+    let statusColors = brandColors[cert] || 'bg-slate-100 text-slate-600 border-slate-200';
+
+    // Overstyr farge hvis datoen er nær eller passert
+    if (expirationDate) {
+        if (expirationDate < today) {
+            statusColors = 'bg-red-600 text-white border-red-700 animate-pulse'; // Utløpt
+        } else if (expirationDate < threeMonthsFromNow) {
+            statusColors = 'bg-yellow-400 text-yellow-900 border-yellow-500'; // Utløper snart
+        }
+    }
+
+    return `<span class="text-[8px] font-black ${statusColors} px-2 py-1 rounded border uppercase tracking-tighter">${cert} ✓</span>`;
+}).join('');
+
+                const resourceLinksHtml = (p.resourceLinks || []).map(link => `
+  <a href="${link.url}"
+     target="_blank"
+     rel="noopener noreferrer"
+     onclick="event.stopPropagation()"
+     class="block max-w-full truncate text-[9px] text-blue-600 hover:text-blue-800 hover:underline font-semibold">
+     🔗 ${link.title}
+  </a>
+`).join('');
+const allImages = p.images || (p.image ? [p.image] : []);
+const hasMultipleImages = allImages.length > 1;
+
+card.innerHTML = `
+    <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group overflow-hidden">
+        <img src="${allImages[0]}" 
+             alt="${p.internNr}" 
+             onclick="event.stopPropagation(); showLightbox(this.src)"
+             class="product-main-image max-h-full object-contain cursor-zoom-in group-hover:scale-110 transition-all duration-500">
+        
+        ${hasMultipleImages ? `
+            <button onclick="event.stopPropagation(); changeImage(this, ${JSON.stringify(allImages).replace(/"/g, '&quot;')}, -1)" 
+                    class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white z-20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button onclick="event.stopPropagation(); changeImage(this, ${JSON.stringify(allImages).replace(/"/g, '&quot;')}, 1)" 
+                    class="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-600 hover:text-white z-20">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+        ` : ''}
+
+        <button onclick="event.stopPropagation(); duplicateProduct('${p.id}')" 
+                class="absolute top-0 right-0 bg-blue-600 text-white p-2.5 rounded-bl-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 -translate-y-2 group-hover:translate-x-0 group-hover:translate-y-0 z-30 hover:bg-blue-700" 
+                title="Kopier varekort">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+            </svg>
+        </button>
+
+        <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1.5 rounded-full text-[9px] font-black text-slate-900 border border-slate-100 shadow-sm uppercase tracking-widest">${p.factory || 'Ukjent'}</div>
+        
+        <div class="absolute bottom-4 right-4 bg-slate-900 text-white px-3 py-1 rounded-lg text-[10px] font-black tracking-tight z-10">${p.internNr}</div>
+    </div>
+
+    
+                    <div class="p-6 flex-1 flex flex-col">
+                        <div class="flex gap-2 mb-6 flex-wrap">
+                            ${certBadges}
+                        </div>
+                        
+                        <div class="space-y-0.5">
+                            <div class="text-[9px] uppercase font-black text-slate-300 mb-2 tracking-[0.2em]">Kundevarianter</div>
+                            ${variantsHtml || '<div class="text-xs text-slate-400 italic">Ingen data tilgjengelig</div>'}
+                            ${(p.variants || []).length > 4 ? `<div class="text-[10px] text-center mt-3 text-slate-400 font-bold">+ ${(p.variants.length - 4)} flere rader...</div>` : ''}
+                        </div>
+                        ${resourceLinksHtml ? `
+  <div class="space-y-1 mt-4 pt-4 border-t border-slate-200">
+    ${resourceLinksHtml}
+  </div>
+` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        };
+
+        // Filter events
+        document.getElementById('mainSearch').addEventListener('input', () => renderGrid());
+        document.getElementById('factoryFilter').addEventListener('change', () => renderGrid());
+        document.getElementById('customerFilter').addEventListener('change', () => renderGrid());
+        document.getElementById('certificateFilter').addEventListener('change', () => renderGrid());
+
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            document.getElementById('mainSearch').value = "";
+            document.getElementById('factoryFilter').value = "";
+            document.getElementById('customerFilter').value = "";
+            document.getElementById('certificateFilter').value = "";
+            renderGrid();
+        });
+
+        window.openEditor = (p = null) => {
+            currentEditId = p ? p.id : null;
+            document.getElementById('modalTitle').innerText = p ? `Redigerer ${p.internNr}` : "Opprett ny varekort";
+            document.getElementById('btnDelete').style.display = p ? 'block' : 'none';
+            
+            document.getElementById('f-internNr').value = p ? p.internNr : "";
+            document.getElementById('f-factory').value = p ? p.factory || "" : "";
+            document.getElementById('f-factoryArtNo').value = p ? p.factoryArtNo || "" : "";
+            
+            // Media liste - handle both new and old format
+            const mediaList = document.getElementById('mediaList');
+            mediaList.innerHTML = "";
+            if (p && p.images && p.images.length > 0) {
+                p.images.forEach(img => addMediaField(img));
+            } else if (p && p.image) {
+                // Support old format with single image
+                addMediaField(p.image);
+            } else {
+                addMediaField("");
+            }
+            
+            // Sertifikater liste - handle both new and old format
+            const certList = document.getElementById('certificateList');
+            certList.innerHTML = "";
+            if (p && p.certificates && Object.keys(p.certificates).length > 0) {
+                Object.entries(p.certificates).forEach(([name, certData]) => {
+                    if (typeof certData === 'object' && certData.value) {
+                        // New format: {value, expirationDate}
+                        addCertificateField(name, certData.value, certData.expirationDate || "");
+                    } else {
+                        // Legacy format: just the value string
+                        addCertificateField(name, certData, "");
+                    }
+                });
+            } else if (p) {
+                // Support old format with individual fields
+                if (p.sintef) addCertificateField("SINTEF", p.sintef, "");
+                if (p.pzh) addCertificateField("PZH", p.pzh, "");
+                if (p.rise) addCertificateField("RISE", p.rise, "");
+                if (p.stf) addCertificateField("STF", p.stf, "");
+                // If nothing was added, add empty defaults
+                if (!p.sintef && !p.pzh && !p.rise && !p.stf) {
+                    addCertificateField("", "", "");
+                }
+            } else {
+                addCertificateField("", "", "");
+            }
+            
+            const vList = document.getElementById('variantList');
+            vList.innerHTML = "";
+            if (p && p.variants) {
+                p.variants.forEach(v => addVariantRow(v.kunde, v.vareNr, v.beskrivelse));
+            } else {
+                addVariantRow();
+            }
+
+            const linksList = document.getElementById('resourceLinkList');
+            linksList.innerHTML = "";
+            if (p && p.resourceLinks && p.resourceLinks.length > 0) {
+                p.resourceLinks.forEach(link => renderReadOnlyResourceLink(link.title, link.url));
+                addResourceLinkRow();
+            } else {
+                addResourceLinkRow();
+            }
+
+            document.getElementById('editorModal').classList.add('active');
+        };
+
+        window.closeModal = () => document.getElementById('editorModal').classList.remove('active');
+
+        window.addVariantRow = (k = "", v = "", b = "") => {
+            const div = document.createElement('div');
+            div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm";
+            div.innerHTML = `
+                <button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Kunde</label>
+                        <input type="text" placeholder="JULA, LOPE..." value="${k}" class="v-kunde w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500 font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Varenr</label>
+                        <input type="text" placeholder="003850..." value="${v}" class="v-vareNr w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500 font-mono font-bold">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Variantbeskrivelse</label>
+                    <input type="text" placeholder="Krom - Celeste etc." value="${b}" class="v-beskrivelse w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
+                </div>
+            `;
+            document.getElementById('variantList').appendChild(div);
+        };
+
+       window.renderReadOnlyResourceLink = (title, url) => {
+    const div = document.createElement('div');
+    div.className = "bg-slate-100 p-3 rounded-xl border border-slate-300 relative group shadow-sm resource-link-row";
+    div.dataset.title = (title || "").trim();
+    div.dataset.url = (url || "").trim();
+
+    div.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex-1 min-w-0">
+                <div class="text-[10px] font-semibold text-slate-700 truncate">${title}</div>
+                <a href="${url}" target="_blank" class="block text-[9px] text-blue-600 hover:underline truncate">🔗 ${url}</a>
+            </div>
+            <button type="button" onclick="this.closest('.resource-link-row').remove()" class="bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] flex items-center justify-center shadow-lg hover:bg-red-600 active:scale-90 transition-all">✕</button>
+        </div>`;
+    document.getElementById('resourceLinkList').appendChild(div);
+};
+
+window.addResourceLinkRow = (title = "", url = "") => {
+    const div = document.createElement('div');
+    div.className = "bg-white p-4 rounded-xl border border-slate-200 relative group shadow-sm resource-link-row";
+    div.innerHTML = `
+        <button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+        <div class="grid grid-cols-1 gap-3">
+            <div>
+                <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Lenketittel</label>
+                <input type="text" placeholder="Beskrivelse" value="${title}" class="link-title w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">URL</label>
+                <input type="url" placeholder="https://..." value="${url}" class="link-url w-full p-2 text-xs border rounded-lg outline-none focus:border-blue-500">
+            </div>
+        </div>`;
+    document.getElementById('resourceLinkList').appendChild(div);
+};
+
+window.addMediaField = (url = "") => {
+    const div = document.createElement('div');
+    div.className = "relative group media-row bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2";
+    const safeUrl = (url || "").replace(/"/g, "&quot;");
+    
+    div.innerHTML = `
+        <div class="flex gap-4 items-start">
+            <div class="w-16 h-16 bg-white border rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center shadow-sm">
+<img src="${safeUrl}" onclick="showLightbox(this.src)" class="media-preview max-w-full max-h-full object-contain cursor-pointer ${url ? '' : 'hidden'}"                     onerror="this.classList.add('hidden')">
+                <div class="placeholder-icon text-slate-300 ${url ? 'hidden' : ''}">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                </div>
+            </div>
+
+            <div class="flex-1 space-y-2">
+                <div class="flex gap-2">
+                    <input type="text" placeholder="https://..." value="${safeUrl}" 
+                           class="media-url flex-1 p-2 text-xs border rounded-lg outline-none focus:border-blue-500 transition-all font-mono"
+                           oninput="this.closest('.media-row').querySelector('.media-preview').src = this.value; 
+                                    this.closest('.media-row').querySelector('.media-preview').classList.toggle('hidden', !this.value);
+                                    this.closest('.media-row').querySelector('.placeholder-icon').classList.toggle('hidden', !!this.value);">
+                    <button type="button" onclick="triggerMediaUpload(this)" class="bg-slate-900 text-white text-[9px] px-3 py-2 rounded-lg font-black uppercase hover:bg-blue-600 transition-all">Last opp</button>
+                </div>
+                <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                    <span class="media-upload-status">Klar for bilde</span>
+                </div>
+            </div>
+        </div>
+        <input type="file" accept="image/*" class="media-file hidden" onchange="handleMediaUpload(this)">
+        <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-5 h-5 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+    `;
+    document.getElementById('mediaList').appendChild(div);
+};
+
+        window.addCertificateField = (name = "", value = "", expirationDate = "") => {
+            const div = document.createElement('div');
+            div.className = "relative group bg-white p-3 rounded-xl border border-slate-200";
+            const safeName = (name || "").replace(/"/g, "&quot;");
+            const safeValue = (value || "").replace(/"/g, "&quot;");
+            const safeDate = (expirationDate || "").replace(/"/g, "&quot;");
+            div.innerHTML = `
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Sertifikat</label>
+                        <input type="text" placeholder="f.eks. SINTEF" value="${safeName}" class="cert-name w-full p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-black uppercase text-xs">
+                    </div>
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Verdi</label>
+                        <input type="text" placeholder="PS 3330" value="${safeValue}" class="cert-value w-full p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm font-semibold">
+                    </div>
+                    <div>
+                        <label class="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1 block">Utløpsdato</label>
+                        <input type="date" value="${safeDate}" class="cert-expiration w-full p-2 border-2 border-slate-100 rounded-lg outline-none focus:border-blue-500 text-sm">
+                    </div>
+                </div>
+                <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-slate-900 text-white w-6 h-6 rounded-full text-[10px] hidden group-hover:flex items-center justify-center shadow-lg active:scale-90 transition-all">✕</button>
+            `;
+            document.getElementById('certificateList').appendChild(div);
+        };
+
+        document.getElementById('btnSave').onclick = async () => {
+            if (!user) return;
+            const internNr = document.getElementById('f-internNr').value.trim();
+            if (!internNr) return alert("Internt NR er påkrevd!");
+
+            const variants = [];
+
+document.querySelectorAll('#variantList > div').forEach(row => {
+    const kEl = row.querySelector('.v-kunde');
+    const vEl = row.querySelector('.v-vareNr');
+    const bEl = row.querySelector('.v-beskrivelse');
+
+    if (!kEl || !vEl || !bEl) return;
+
+    const k = kEl.value.trim().toUpperCase();
+    const v = vEl.value.trim();
+    const b = bEl.value.trim();
+
+    if (k || v) variants.push({ kunde: k, vareNr: v, beskrivelse: b });
+});
+
+            // Samle bilder
+            const images = [];
+            document.querySelectorAll('#mediaList .media-url').forEach(input => {
+                const url = input.value.trim();
+                if (url) images.push(url);
+            });
+
+            // Samle sertifikater
+            const certificates = {};
+            document.querySelectorAll('#certificateList > div').forEach(row => {
+                const name = row.querySelector('.cert-name').value.trim().toUpperCase();
+                const value = row.querySelector('.cert-value').value.trim();
+                const expirationDate = row.querySelector('.cert-expiration').value.trim();
+                if (name && value) {
+                    certificates[name] = { value, expirationDate };
+                }
+            });
+
+const resourceLinks = [];
+
+document.querySelectorAll('#resourceLinkList .resource-link-row').forEach(row => {
+    const titleInput = row.querySelector('.link-title');
+    const urlInput = row.querySelector('.link-url');
+
+    // Input-rad
+    if (titleInput && urlInput) {
+        const title = titleInput.value.trim();
+        const url = urlInput.value.trim();
+        if (title || url) resourceLinks.push({ title, url });
+        return;
+    }
+
+    // Read-only rad (ingen inputs)
+    const title = (row.dataset.title || "").trim();
+    const url = (row.dataset.url || "").trim();
+    if (title || url) resourceLinks.push({ title, url });
+});
+
+            const factoryArtNo = normalizeString(document.getElementById('f-factoryArtNo').value);
+            const data = {
+                internNr,
+                factory: normalizeString(document.getElementById('f-factory').value),
+                factoryArtNo,
+                images: images.length > 0 ? images : [],
+                certificates: certificates,
+                variants,
+                resourceLinks,
+                updatedAt: new Date().toISOString()
+            };
+
+            const docId = currentEditId || internNr.replace(/\s+/g, '-').toLowerCase();
+            
+try {
+    await setDoc(doc(db, ...dbPath, docId), data);
+    closeModal();
+} catch (err) {
+    console.error("Save failed", err);
+    alert("Lagring feilet – se Console for detaljer.");
+}
+
+        };
+
+        document.getElementById('btnDelete').onclick = async () => {
+            if (!currentEditId || !user) return;
+            if (confirm("Er du helt sikker? Varen slettes fra alles databaser.")) {
+                await deleteDoc(doc(db, ...dbPath, currentEditId));
+                closeModal();
+            }
+        };
+
+        document.getElementById('btnAddNew').onclick = () => openEditor();
+
+        initAuth();
+        window.showLightbox = (url) => {
+    const lb = document.getElementById('lightbox');
+    const img = document.getElementById('lightbox-img');
+    img.src = url;
+    lb.style.display = 'flex';
+};
+window.updateFactoryList = () => {
+    const datalist = document.getElementById('factory-list');
+    // Sjekk at både lista og dataene finnes
+    if (!datalist || !products) return;
+
+    // Finn unike fabrikker
+    const factories = [...new Set(products
+        .map(p => p.factory)
+        .filter(f => f && typeof f === 'string' && f.trim() !== "")
+    )].sort();
+
+    // Fyll listen
+    datalist.innerHTML = factories
+        .map(f => `<option value="${f.trim()}">`)
+        .join('');
+};
+window.changeImage = (button, images, direction) => {
+    const container = button.closest('.group');
+    const imgElement = container.querySelector('.product-main-image');
+    const dots = container.querySelectorAll('.dot');
+    
+    // Finn nåværende indeks basert på bilde-URL
+    let currentIndex = images.indexOf(imgElement.src);
+    if (currentIndex === -1) currentIndex = 0;
+
+    // Regn ut ny indeks (looper rundt hvis vi går forbi start/slutt)
+    let newIndex = (currentIndex + direction + images.length) % images.length;
+
+    // Oppdater bilde og prikker
+    imgElement.src = images[newIndex];
+    dots.forEach((dot, i) => {
+        dot.classList.toggle('bg-blue-600', i === newIndex);
+        dot.classList.toggle('bg-slate-900/20', i !== newIndex);
+    });
+};
+window.duplicateProduct = (id) => {
+    // Finn produktet i den globale listen
+    const sourceProduct = products.find(p => p.id === id);
+    if (!sourceProduct) return;
+
+    // Lag en kopi av dataene
+    const copy = JSON.parse(JSON.stringify(sourceProduct));
+    
+    // Viktig: Nullstill ID og spesifikke felter som MÅ endres
+    delete copy.id;
+    copy.internNr = copy.internNr + " (KOPI)";
+    
+    // Åpne editoren med kopi-dataene
+    // Vi sender null som første argument for at systemet skal tro det er en "ny" vare
+    // men vi fyller inn feltene med data fra kopien
+    openEditor(copy);
+    
+    // Overstyr modal-tittelen for å vise at vi dupliserer
+    document.getElementById('modalTitle').innerText = "Dupliserer " + sourceProduct.internNr;
+    // Skjul slett-knappen siden dette teknisk sett er en ny vare
+    document.getElementById('btnDelete').style.display = 'none';
+    // Sett currentEditId til null så vi lagrer som ny vare
+    currentEditId = null;
+};
+    </script>
+    <div id="lightbox" onclick="this.style.display='none'">
+    <img id="lightbox-img" src="" alt="Forstørret bilde">
+</div>
+</body>
+</html>
