@@ -462,12 +462,18 @@ card.addEventListener('click', (e) => {
 });
 
                 
-                const variantsHtml = (p.variants || []).slice(0, 4).map(v => 
-                    `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0 group/row">
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">${v.kunde}</span>
-                        <span class="text-[11px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 rounded">${v.vareNr}</span>
-                    </div>`
-                ).join('');
+                const variantsHtml = (p.variants || []).slice(0, 4).map((v, index) => 
+                `<div style="border-bottom: 1px solid #64748b;" class="py-1.5 last:border-0 group/row">
+                <div class="flex justify-between items-center mb-0.5">
+            <span style="font-size: 12px;" class="font-black text-slate-400 uppercase tracking-tighter">${v.kunde || ''}</span>
+            <span style="font-size: 12px;" class="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 rounded">${v.vareNr || ''}</span>
+                </div>
+            ${v.beskrivelse ? `
+            <div style="font-size: 11px;" class="text-slate-500 leading-tight italic pl-1 border-l border-slate-100 overflow-hidden text-ellipsis">
+            ${v.beskrivelse}
+            </div>` : ''}
+    </div>`
+).join('');
 
                 // Get first image from new format or fallback to legacy image
                 const imageUrl = (p.images && p.images[0]) || p.image || null;
@@ -637,10 +643,26 @@ card.innerHTML = `
             const vList = document.getElementById('variantList');
             vList.innerHTML = "";
             if (p && p.variants) {
-                p.variants.forEach(v => addVariantRow(v.kunde, v.vareNr, v.beskrivelse));
-            } else {
-                addVariantRow();
-            }
+                p.variants.forEach((v, index) => {
+                    const div = document.createElement('div');
+                    // Bruker py-3 (original luft) og fjerner unødvendig gap
+                    div.className = "py-3 flex flex-col";
+                    
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center w-full">
+                            <span style="font-size: 14px;" class="font-black text-slate-400 uppercase tracking-tighter">${v.kunde || ''}</span>
+                            <span style="font-size: 14px;" class="font-mono font-bold text-blue-600 bg-blue-50 px-1.5 rounded">${v.vareNr || ''}</span>
+                        </div>
+                        ${v.beskrivelse ? `
+                            <div class="text-[10px] text-slate-500 italic leading-tight mt-1 pl-2 border-l-2 border-slate-100">
+                                ${v.beskrivelse}
+                            </div>
+                        ` : ''}
+                        ${index < p.variants.length - 1 ? '<hr class="mt-3 border-slate-600">' : ''}
+                    `;
+                    vList.appendChild(div);
+                    });
+                }
 
             const linksList = document.getElementById('resourceLinkList');
             linksList.innerHTML = "";
@@ -714,8 +736,8 @@ document.getElementById('modalTitle').innerText = p ? `Produktdetaljer: ${p.inte
     const div = document.createElement('div');
     div.className = "grid grid-cols-2 gap-2 mb-2";
     div.innerHTML = `
-        <input type="text" value="${v}" readonly disabled class="p-2 border rounded bg-slate-100 cursor-not-allowed">
-        <input type="text" value="${artNo}" readonly disabled class="p-2 border rounded bg-slate-100 cursor-not-allowed">`;
+        <input type="text" value="${v}" readonly disabled class="p-2 border rounded bg-slate-500 cursor-not-allowed">
+        <input type="text" value="${artNo}" readonly disabled class="p-2 border rounded bg-slate-500 cursor-not-allowed">`;
     document.getElementById('variantList').appendChild(div);
 };
        window.renderReadOnlyResourceLink = (title, url) => {
