@@ -818,7 +818,22 @@ window.addMediaField = (url = "") => {
         let currentLightboxIndex = 0;
         let touchStartX = 0;
 
-    window.showLightbox = (images, index = 0) => {
+window.changeImage = (button, images, direction) => {
+    const container = button.closest('.group');
+    const imgElement = container.querySelector('.product-main-image');
+    if (!imgElement) return;
+
+    // Sjekker om images faktisk er en array
+    const imgList = Array.isArray(images) ? images : [images];
+    
+    let currentIndex = imgList.indexOf(imgElement.src);
+    if (currentIndex === -1) currentIndex = 0;
+    
+    let newIndex = (currentIndex + direction + imgList.length) % imgList.length;
+    imgElement.src = imgList[newIndex];
+};
+
+ window.showLightbox = (images, index = 0) => {
     currentLightboxImages = Array.isArray(images) ? images : [images];
     currentLightboxIndex = index;
     
@@ -827,19 +842,41 @@ window.addMediaField = (url = "") => {
     const prevBtn = document.getElementById('lbPrev');
     const nextBtn = document.getElementById('lbNext');
 
-    lbImg.src = currentLightboxImages[currentLightboxIndex];
-    lb.style.display = 'flex';
+    if (lb && lbImg) {
+        lbImg.src = currentLightboxImages[currentLightboxIndex];
+        lb.style.display = 'flex';
+        
+        // Håndter piler (slik du hadde på bildet)
+        const showBtns = currentLightboxImages.length > 1 ? 'block' : 'none';
+        if (prevBtn) prevBtn.style.display = showBtns;
+        if (nextBtn) nextBtn.style.display = showBtns;
 
-    // Skjul piler hvis det bare er ett bilde
-    const showBtns = currentLightboxImages.length > 1 ? 'block' : 'none';
-    prevBtn.style.display = showBtns;
-    nextBtn.style.display = showBtns;
+        updateDots(); // <--- Ny funksjon for prikkene
+    }
 };
 
 window.changeLightboxImage = (direction) => {
+    if (currentLightboxImages.length <= 1) return;
     currentLightboxIndex = (currentLightboxIndex + direction + currentLightboxImages.length) % currentLightboxImages.length;
     document.getElementById('lightbox-img').src = currentLightboxImages[currentLightboxIndex];
+    
+    updateDots(); // <--- Oppdaterer prikken når du bytter bilde
 };
+
+// Funksjonen som tegner prikkene
+function updateDots() {
+    const dotsContainer = document.getElementById('lbDots');
+    if (!dotsContainer) return;
+    
+    if (currentLightboxImages.length <= 1) {
+        dotsContainer.innerHTML = "";
+        return;
+    }
+
+    dotsContainer.innerHTML = currentLightboxImages.map((_, i) => `
+        <div class="h-1.5 w-1.5 rounded-full transition-all duration-300 ${i === currentLightboxIndex ? 'bg-white w-3' : 'bg-white/20'}"></div>
+    `).join('');
+}
 
 window.closeLightbox = (e) => {
     if (e.target.id === 'lightbox' || e.target.id === 'btnCloseLightbox') {
@@ -866,6 +903,8 @@ lbContainer.addEventListener('touchend', e => {
     <button onclick="event.stopPropagation(); changeLightboxImage(1)" id="lbNext" class="absolute right-4 p-4 text-white hover:bg-white/10 rounded-full transition-all z-[1010]">
         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
     </button>
+    <div id="lbDots" class="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-2 z-[1020]">
+    </div>
 </div>
     
 </body>
