@@ -536,7 +536,7 @@ card.innerHTML = `
     <div class="h-64 bg-slate-50 flex items-center justify-center p-8 relative group overflow-hidden">
         <img src="${allImages[0]}" 
              alt="${p.internNr}" 
-             onclick="event.stopPropagation(); showLightbox(${JSON.stringify(allImages).replace(/"/g, "'")}, 0)"
+             onclick="event.stopPropagation(); showLightbox(this.src)"
              class="product-main-image max-h-full object-contain cursor-zoom-in group-hover:scale-110 transition-all duration-500">
         
         ${hasMultipleImages ? `
@@ -813,60 +813,27 @@ window.addMediaField = (url = "") => {
             datalist.innerHTML = factories.map(f => `<option value="${f}">`).join('');
         };
 
-       
-        let currentLightboxImages = [];
-        let currentLightboxIndex = 0;
-        let touchStartX = 0;
+        window.changeImage = (button, images, direction) => {
+            const container = button.closest('.group');
+            const imgElement = container.querySelector('.product-main-image');
+            let currentIndex = images.indexOf(imgElement.src);
+            if (currentIndex === -1) currentIndex = 0;
+            let newIndex = (currentIndex + direction + images.length) % images.length;
+            imgElement.src = images[newIndex];
+        };
 
-    window.showLightbox = (images, index = 0) => {
-    currentLightboxImages = Array.isArray(images) ? images : [images];
-    currentLightboxIndex = index;
-    
-    const lb = document.getElementById('lightbox');
-    const lbImg = document.getElementById('lightbox-img');
-    const prevBtn = document.getElementById('lbPrev');
-    const nextBtn = document.getElementById('lbNext');
-
-    lbImg.src = currentLightboxImages[currentLightboxIndex];
-    lb.style.display = 'flex';
-
-    // Skjul piler hvis det bare er ett bilde
-    const showBtns = currentLightboxImages.length > 1 ? 'block' : 'none';
-    prevBtn.style.display = showBtns;
-    nextBtn.style.display = showBtns;
-};
-
-window.changeLightboxImage = (direction) => {
-    currentLightboxIndex = (currentLightboxIndex + direction + currentLightboxImages.length) % currentLightboxImages.length;
-    document.getElementById('lightbox-img').src = currentLightboxImages[currentLightboxIndex];
-};
-
-window.closeLightbox = (e) => {
-    if (e.target.id === 'lightbox' || e.target.id === 'btnCloseLightbox') {
-        document.getElementById('lightbox').style.display = 'none';
-    }
-};
-
-// Sveip-logikk for mobil
-const lbContainer = document.getElementById('lightbox');
-lbContainer.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX);
-lbContainer.addEventListener('touchend', e => {
-    let touchEndX = e.changedTouches[0].screenX;
-    if (touchStartX - touchEndX > 50) changeLightboxImage(1); // Sveip venstre -> Neste
-    if (touchEndX - touchStartX > 50) changeLightboxImage(-1); // Sveip høyre -> Forrige
-});
+        initAuth();
+        window.showLightbox = (src) => {
+            const lb = document.getElementById('lightbox');
+            const lbImg = document.getElementById('lightbox-img');
+            if (lb && lbImg) {
+                lbImg.src = src;
+                lb.style.display = 'flex';
+            }
+        };
     </script>
-    <div id="lightbox" onclick="closeLightbox(event)" class="hidden fixed inset-0 z-[1000] bg-black/95 items-center justify-center cursor-zoom-out">
-    <button onclick="event.stopPropagation(); changeLightboxImage(-1)" id="lbPrev" class="absolute left-4 p-4 text-white hover:bg-white/10 rounded-full transition-all z-[1010]">
-        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-    </button>
-
-    <img id="lightbox-img" src="" class="max-w-[90%] max-h-[90%] shadow-2xl rounded-sm transition-transform duration-300">
-
-    <button onclick="event.stopPropagation(); changeLightboxImage(1)" id="lbNext" class="absolute right-4 p-4 text-white hover:bg-white/10 rounded-full transition-all z-[1010]">
-        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-    </button>
-</div>
-    
+    <div id="lightbox" onclick="this.style.display='none'">
+        <img id="lightbox-img" src="" alt="Forstørret bilde">
+    </div>
 </body>
 </html>
