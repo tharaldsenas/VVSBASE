@@ -307,9 +307,21 @@ onAuthStateChanged(auth, async (u) => {
     }
 });
 
-        const loadData = () => {
+const loadData = () => {
     const q = collection(db, ...dbPath);
+    
     onSnapshot(q, (snapshot) => {
+        // Sjekk om vi faktisk får data
+        if (snapshot.empty) {
+            console.log("Databasen returnerte en tom liste.");
+            document.getElementById('statusDot').innerText = "Tom database";
+            document.getElementById('statusDot').className = "text-yellow-500 font-bold uppercase";
+            
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) loadingEl.style.display = 'none';
+            return;
+        }
+
         // VIKTIG: Ingen 'const' her, vi bruker den globale variabelen
         products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
@@ -319,10 +331,24 @@ onAuthStateChanged(auth, async (u) => {
         if (window.updateFactoryList) {
             window.updateFactoryList();
         }
-
-        document.getElementById('loading').style.display = 'none';
+        
+        // Skjul lastehjulet ved suksess
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'none';
+        
     }, (err) => {
         console.error("Fetch error", err);
+        
+        // Vis feilen på skjermen i stedet for evig lastehjul
+        const statusDot = document.getElementById('statusDot');
+        if (statusDot) {
+            statusDot.innerText = "Tilkobling avvist";
+            statusDot.className = "text-red-500 font-bold uppercase";
+        }
+        
+        // Skjul lastehjulet ved feil så siden ikke fryser
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.style.display = 'none';
     });
 };
 
