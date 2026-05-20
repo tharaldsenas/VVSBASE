@@ -281,14 +281,14 @@
             }
         };
 
-      onAuthStateChanged(auth, async (u) => {
+onAuthStateChanged(auth, async (u) => {
     user = u;
     if (user) {
         document.getElementById('statusDot').innerText = "✓ Synkronisert";
         document.getElementById('statusDot').className = "text-green-500 font-bold uppercase";
         
         try {
-            // Vi prøver å sjekke om databasen er tom (krever admin/skriverettigheter)
+            // Vi PRØVER å sjekke om basen er tom (Dette vil feile grasiøst for anonyme)
             const q = collection(db, ...dbPath);
             const snapshot = await getDocs(q);
             if (snapshot.empty) {
@@ -297,13 +297,12 @@
                 }
             }
         } catch (seedError) {
-            // Hvis dette feiler (f.eks. for anonyme brukere), ignorerer vi det bare.
-            // De skal ikke seede uansett. Vi logger det kun i konsollen for feilsøking:
-            console.log("Anonym bruker eller begrenset tilgang (Seeding hoppet over).");
+            // Hvis anonyme brukere ikke har lov til å seede, driter vi i det.
+            console.log("Seeding hoppet over (Anonym eller begrenset tilgang).");
         }
 
-        // Dette kjører UANSETT om try-blokken over feilet eller ikke.
-        // Så lenge Firebase-reglene dine tillater "read", vil varene vises nå.
+        // VIKTIG: Denne må stå UTENFOR try/catch-blokken over. 
+        // Da vil varene lastes inn uansett om brukeren har admin-rettigheter eller ikke!
         loadData();
     }
 });
