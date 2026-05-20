@@ -926,6 +926,7 @@ lbContainer.addEventListener('touchend', e => {
     if (touchStartX - touchEndX > 50) changeLightboxImage(1); // Sveip venstre -> Neste
     if (touchEndX - touchStartX > 50) changeLightboxImage(-1); // Sveip høyre -> Forrige
 });
+        initAuth();
     </script>
     <div id="lightbox" onclick="closeLightbox(event)" class="hidden fixed inset-0 z-[1000] bg-black/95 items-center justify-center cursor-zoom-out">
     <button onclick="event.stopPropagation(); changeLightboxImage(-1)" id="lbPrev" class="absolute left-4 p-4 text-white hover:bg-white/10 rounded-full transition-all z-[1010]">
