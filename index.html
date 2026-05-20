@@ -281,23 +281,32 @@
             }
         };
 
-        onAuthStateChanged(auth, async (u) => {
-            user = u;
-            if (user) {
-                document.getElementById('statusDot').innerText = "✓ Synkronisert";
-                document.getElementById('statusDot').className = "text-green-500 font-bold uppercase";
-                
-                // Seed hvis tom
-                const q = collection(db, ...dbPath);
-                const snapshot = await getDocs(q);
-                if (snapshot.empty) {
-                    for (const item of seedData) {
-                        await setDoc(doc(db, ...dbPath, item.internNr.toLowerCase()), item);
-                    }
+      onAuthStateChanged(auth, async (u) => {
+    user = u;
+    if (user) {
+        document.getElementById('statusDot').innerText = "✓ Synkronisert";
+        document.getElementById('statusDot').className = "text-green-500 font-bold uppercase";
+        
+        try {
+            // Vi prøver å sjekke om databasen er tom (krever admin/skriverettigheter)
+            const q = collection(db, ...dbPath);
+            const snapshot = await getDocs(q);
+            if (snapshot.empty) {
+                for (const item of seedData) {
+                    await setDoc(doc(db, ...dbPath, item.internNr.toLowerCase()), item);
                 }
-                loadData();
             }
-        });
+        } catch (seedError) {
+            // Hvis dette feiler (f.eks. for anonyme brukere), ignorerer vi det bare.
+            // De skal ikke seede uansett. Vi logger det kun i konsollen for feilsøking:
+            console.log("Anonym bruker eller begrenset tilgang (Seeding hoppet over).");
+        }
+
+        // Dette kjører UANSETT om try-blokken over feilet eller ikke.
+        // Så lenge Firebase-reglene dine tillater "read", vil varene vises nå.
+        loadData();
+    }
+});
 
         const loadData = () => {
     const q = collection(db, ...dbPath);
